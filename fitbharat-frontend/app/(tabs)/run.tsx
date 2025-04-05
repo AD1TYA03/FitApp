@@ -1,214 +1,155 @@
-// (tabs)/run.tsx
+import GoogleMaps from "@/components/ui/googleMaps";
+import { Colors } from "@/constants/Colors";
+import { MaterialIcons } from "@expo/vector-icons";
+import { useState } from "react";
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
-import React, { useState, useEffect, useRef } from 'react';
-import { View, StyleSheet, Modal, Text, TouchableOpacity, TextInput, Button ,SafeAreaView } from 'react-native';
-import io from 'socket.io-client';
-import * as Location from 'expo-location';
-import RunMapView from '../../components/runMapView';
+export interface IPointLocation {
+  active?: boolean;
+  latitude: number;
+  longitude: number;
+}
 
+export default function Path() {
+  const [routeCoords, setRouteCoords] = useState<IPointLocation[]>([]);
+  const [location, setLocation] = useState<IPointLocation>({ latitude: 0, longitude: 0 });
+  const [startLocation, setStartLocation] = useState<IPointLocation>({ active: false, latitude: 0, longitude: 0 });
+  const [endLocation, setEndLocation] = useState<IPointLocation>({ active: false, latitude: 0.1, longitude: 0.1 });
 
-const socket = io('http://192.168.29.91:3000'); // Replace with your IP
+  const fetchRoute = async () => {
+    const osrmUrl = `https://router.project-osrm.org/route/v1/walking/${startLocation.longitude},${startLocation.latitude};${endLocation.longitude},${endLocation.latitude}?overview=full&geometries=geojson`;
+    try {
+      const res = await fetch(osrmUrl);
+      const data = await res.json();
+      if (data.code !== "Ok") throw new Error(data.message);
 
-const RunPage = () => {
-  const [polylines, setPolylines] = useState([]);
-  const [selectedPolylineId, setSelectedPolylineId] = useState(null);
-  const [showPolylineInfo, setShowPolylineInfo] = useState(false);
-  const [liveLocations, setLiveLocations] = useState([]);
-  const [userLocation, setUserLocation] = useState(null);
-  const [chatMessages, setChatMessages] = useState([]);
-  const [chatInput, setChatInput] = useState('');
-  const [isTracking, setIsTracking] = useState(false);
-  const [locationSubscription, setLocationSubscription] = useState(null);
-
-  useEffect(() => {
-    socket.on('connect', () => {
-      console.log('Socket connected');
-    });
-
-    socket.on('locationUpdate', (data) => {
-      setLiveLocations((prevLocations) => {
-        const updatedLocations = prevLocations.filter((loc) => loc.userId !== data.userId);
-        return [...updatedLocations, data];
-      });
-    });
-
-    socket.on('chatMessage', (data) => {
-      setChatMessages((prevMessages) => [...prevMessages, data]);
-    });
-
-    return () => {
-      socket.disconnect();
-    };
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      let { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        console.error('Permission to access location was denied');
-        return;
-      }
-
-      let location = await Location.getCurrentPositionAsync({});
-      setUserLocation(location.coords);
-
-      const randomPolylines = generateRandomPolylines(location.coords);
-      setPolylines(randomPolylines);
-    })();
-  }, []);
-
-  const generateRandomPolylines = (center) => {
-    const polylines = [];
-    for (let i = 0; i < 3; i++) {
-      const coordinates = [];
-      for (let j = 0; j < 5; j++) {
-        coordinates.push({
-          latitude: center.latitude + (Math.random() - 0.5) * 0.05,
-          longitude: center.longitude + (Math.random() - 0.5) * 0.05,
-        });
-      }
-      polylines.push({ id: `${i}`, coordinates });
+      const coords = data.routes[0].geometry.coordinates.map(
+        ([lng, lat]: [number, number]) => ({ latitude: lat, longitude: lng })
+      );
+      setRouteCoords(coords);
+    } catch (err) {
+      console.error("Fetch route error:", err);
+      Alert.alert("Error", "Could not fetch route.");
     }
-    return polylines;
   };
 
-  const handlePolylineCreated = (points) => {
-    const newPolyline = {
-      id: String(Date.now()),
-      coordinates: points.map((point) => ({
-        latitude: point.lat,
-        longitude: point.lng,
-      })),
-    };
-    setPolylines((prevPolylines) => [...prevPolylines, newPolyline]);
-  };
-
-  const onPolylinePress = (polylineId) => {
-    setSelectedPolylineId(polylineId);
-    setShowPolylineInfo(true);
-  };
-
-  const startRunning = async () => {
-    let { status } = await Location.requestForegroundPermissionsAsync();
-    if (status !== 'granted') {
-      console.error('Permission to access location was denied');
+  const saveRoute = async () => {
+    if (!startLocation.active || !endLocation.active || routeCoords.length === 0) {
+      Alert.alert("Missing Info", "Please set start/end points and fetch route first.");
       return;
     }
 
-    setIsTracking(true);
-    const subscription = await Location.watchPositionAsync(
-      { accuracy: Location.Accuracy.BestForNavigation, timeInterval: 5000 },
-      (location) => {
-        setUserLocation(location.coords);
-        sendLocation(location.coords);
-      }
-    );
-    setLocationSubscription(subscription);
-  };
+    try {
+      const res = await fetch("http://192.168.204.25:8001/api/paths/save-path", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          startLocation,
+          endLocation,
+          route: routeCoords,
+        }),
+      });
 
-  const stopRunning = () => {
-    setIsTracking(false);
-    if (locationSubscription) {
-      locationSubscription.remove();
-      setLocationSubscription(null);
-    }
-  };
-
-  const sendLocation = (location) => {
-    if (isTracking) {
-      socket.emit('locationUpdate', { polylineId: selectedPolylineId, location, userId: 'user123' });
-    }
-  };
-
-  const sendMessage = () => {
-    if (chatInput) {
-      socket.emit('chatMessage', { polylineId: selectedPolylineId, message: chatInput, userId: 'user123' });
-      setChatInput('');
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Save failed");
+      Alert.alert("Success", "Route saved!");
+    } catch (err) {
+      console.error("Save error:", err);
+      Alert.alert("Error", "Failed to save route.");
     }
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <RunMapView
-        polylines={polylines}
-        onPolylinePress={onPolylinePress}
-        liveLocations={liveLocations}
-        userLocation={userLocation}
-        onPolylineCreated={handlePolylineCreated}
+    <View style={styles.container}>
+      <GoogleMaps
+        location={location}
+        setLocation={setLocation}
+        setStartLocation={setStartLocation}
+        setEndLocation={setEndLocation}
+        startLocation={startLocation}
+        endLocation={endLocation}
+        routeCoords={routeCoords}
       />
+      <SafeAreaView style={styles.overlay}>
+        <View style={styles.controls}>
+          {[["Start", "blue", setStartLocation], ["End", "red", setEndLocation]].map(([label, color, setter], idx) => (
+            <View style={styles.inputGroup} key={idx}>
+              <TextInput
+                placeholder={`${label} Point`}
+                placeholderTextColor="#aaa"
+                style={styles.input}
+                value={
+                  (idx === 0 ? startLocation : endLocation).active
+                    ? `${(idx === 0 ? startLocation : endLocation).latitude.toFixed(5)}, ${(idx === 0 ? startLocation : endLocation).longitude.toFixed(5)}`
+                    : ""
+                }
+              />
+              <MaterialIcons
+                name="add-location-alt"
+                size={24}
+                color={color as string}
+                onPress={() =>
+                  setter({
+                    active: true,
+                    latitude: location.latitude + idx * 0.001,
+                    longitude: location.longitude + idx * 0.001,
+                  })
+                }
+              />
+            </View>
+          ))}
 
-      <Modal visible={showPolylineInfo} transparent animationType="slide">
-        <View style={styles.modalContainer}>
-          <Text>Polyline ID: {selectedPolylineId}</Text>
-          {isTracking ? (
-            <TouchableOpacity style={styles.stopButton} onPress={stopRunning}>
-              <Text>Stop Running</Text>
+          <View style={styles.buttons}>
+            <TouchableOpacity style={styles.button} onPress={fetchRoute}>
+              <MaterialIcons name="alt-route" size={24} color="#fff" />
             </TouchableOpacity>
-          ) : (
-            <TouchableOpacity style={styles.startButton} onPress={startRunning}>
-              <Text>Start Running</Text>
+            <TouchableOpacity style={styles.button} onPress={saveRoute}>
+              <MaterialIcons name="save-alt" size={24} color="#fff" />
             </TouchableOpacity>
-          )}
-
-          <TouchableOpacity onPress={() => setShowPolylineInfo(false)}>
-            <Text>Close</Text>
-          </TouchableOpacity>
-          <View style={styles.chatContainer}>
-            {chatMessages.map((message, index) => (
-              <Text key={index}>{message.userId}: {message.message}</Text>
-            ))}
-            <TextInput
-              style={styles.chatInput}
-              value={chatInput}
-              onChangeText={setChatInput}
-              placeholder="Type a message..."
-            />
-            <Button title="Send" onPress={sendMessage} />
           </View>
         </View>
-      </Modal>
-    </SafeAreaView>
+      </SafeAreaView>
+    </View>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
+  container: { flex: 1 },
+  overlay: {
+    position: "absolute",
+    width: "100%",
+    paddingHorizontal: 10,
+    paddingTop: 10,
+  },
+  controls: {
+    flexDirection: "column",
+    backgroundColor: "#1e1e1eaa",
+    padding: 10,
+    borderRadius: 10,
+  },
+  inputGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 8,
+    backgroundColor: "#333",
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  input: {
     flex: 1,
+    color: "#fff",
+    fontSize: 16,
+    paddingVertical: 5,
   },
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    padding: 20,
-  },
-  startButton: {
-    backgroundColor: 'blue',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 10,
-  },
-  stopButton: {
-    backgroundColor: 'red',
-    padding: 10,
-    borderRadius: 5,
-    marginVertical: 10,
-  },
-  chatContainer: {
-    width: '100%',
-    marginTop: 20,
-  },
-  chatInput: {
-    borderWidth: 1,
-    borderColor: '#ccc',
-    padding: 10,
+  buttons: {
+    flexDirection: "row",
+    justifyContent: "space-evenly",
     marginTop: 10,
   },
-  webView: {
-    flex: 1,
-    width: '100%',
-    height: '100%',
+  button: {
+    backgroundColor: "#666",
+    padding: 10,
+    borderRadius: 50,
   },
 });
-
-export default RunPage;
