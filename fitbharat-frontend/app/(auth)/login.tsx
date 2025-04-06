@@ -1,24 +1,59 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ImageBackground } from 'react-native';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ImageBackground, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!email || !password) {
       Alert.alert('Error', 'Please enter email and password.');
       return;
     }
-    Alert.alert('Login Success', 'Redirecting...');
-    router.push('/(tabs)/home');
+
+    setLoading(true); // Set loading state to true
+
+    try {
+      const response = await axios.post('http://192.168.29.119:8001/auth/login', {
+        email: email,
+        password: password,
+      });
+
+      setLoading(false); // Set loading state to false
+      console.log('Login successful:', response.data);
+      Alert.alert('Login Success', response.data.message || 'Login successful!');
+
+      if (response.data.token) {
+        await AsyncStorage.setItem('authToken', response.data.token);
+        console.log('Token stored:', response.data.token);
+      }
+
+      if (response.data.user) {
+        await AsyncStorage.setItem('user',JSON.stringify(response.data.user));
+        console.log('User Info:', response.data.user);
+      }
+
+      router.push('/(tabs)/home');
+
+    } catch (error) {
+      setLoading(false); // Set loading state to false
+      console.error('Login error:', error);
+      let errorMessage = 'Invalid credentials or network error.';
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+      Alert.alert('Login Failed', errorMessage);
+    }
   };
 
   return (
     <ImageBackground source={require('../../assets/images/cardio.png')} style={styles.background}>
       <View style={styles.overlay} />
-      
+
       <View style={styles.container}>
         <Text style={styles.title}>Welcome Back</Text>
 
@@ -41,8 +76,12 @@ export default function LoginPage() {
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Login</Text>
+        <TouchableOpacity style={styles.loginButton} onPress={handleLogin} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.loginButtonText}>Login</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.footer}>

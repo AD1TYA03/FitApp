@@ -1,19 +1,55 @@
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ImageBackground } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ImageBackground, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import axios from 'axios';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignupPage() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSignup = () => {
+  const handleSignup = async () => {
     if (!username || !email || !password) {
       Alert.alert('Error', 'Please fill all fields.');
       return;
     }
-    Alert.alert('Signup Success', 'Redirecting...');
-    router.push('/(tabs)/home');
+
+    setLoading(true);
+
+    try {
+      const response = await axios.post('http://192.168.29.119:8001/auth/register', {
+        name: username,
+        email: email,
+        password: password,
+      });
+
+      setLoading(false);
+      console.log('Signup successful:', response.data);
+      Alert.alert('Signup Success', response.data.message || 'Account created successfully!');
+
+      if (response.data.token) {
+        await AsyncStorage.setItem('authToken', response.data.token);
+        console.log('Token stored:', response.data.token);
+      }
+
+      if (response.data.user) {
+        await AsyncStorage.setItem('user',JSON.stringify(response.data.user));
+        console.log('User Info:', response.data.user);
+      }
+
+      router.push('/(tabs)/home');
+
+    } catch (error) {
+      setLoading(false);
+      console.error('Signup error:', error);
+      let errorMessage = 'Failed to create account. Please try again.';
+      if (error.response && error.response.data && error.response.data.message) {
+        errorMessage = error.response.data.message;
+      }
+      Alert.alert('Signup Failed', errorMessage);
+    }
   };
 
   return (
@@ -50,8 +86,12 @@ export default function SignupPage() {
           onChangeText={setPassword}
         />
 
-        <TouchableOpacity style={styles.signupButton} onPress={handleSignup}>
-          <Text style={styles.signupButtonText}>Sign Up</Text>
+        <TouchableOpacity style={styles.signupButton} onPress={handleSignup} disabled={loading}>
+          {loading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.signupButtonText}>Sign Up</Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.footer}>
@@ -74,7 +114,7 @@ const styles = StyleSheet.create({
   },
   overlay: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)', // Dark overlay for better visibility
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
   },
   container: {
     width: '85%',

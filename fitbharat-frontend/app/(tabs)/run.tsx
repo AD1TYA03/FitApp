@@ -41,7 +41,7 @@ export default function Path() {
     }
 
     try {
-      const res = await fetch("http://192.168.204.25:8001/api/paths/save-path", {
+      const res = await fetch("http://192.168.29.119:8001/api/paths/save-path", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

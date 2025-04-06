@@ -1,14 +1,23 @@
 import React, { useState } from 'react';
-import { View, Button, Text, StyleSheet } from 'react-native';
+import { View, Button, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../../context/AuthContext';
 import LoginScreen from './login';
 import SignupScreen from './signup';
 
 const AuthFlow = () => {
-  const { user, logout } = useAuth();
+  const { user, logout, loading } = useAuth();
   const router = useRouter();
   const [isSignup, setIsSignup] = useState(false);
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <Text style={styles.text}>Checking login status...</Text>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
 
   if (user) {
     return (
@@ -23,10 +32,7 @@ const AuthFlow = () => {
   return (
     <View style={styles.container}>
       {isSignup ? <SignupScreen /> : <LoginScreen />}
-      <Button
-        title={isSignup ? 'Already have an account? Login' : 'Don’t have an account? Signup'}
-        onPress={() => setIsSignup((prev) => !prev)}
-      />
+      
     </View>
   );
 };
@@ -34,14 +40,14 @@ const AuthFlow = () => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+
     width: '100%',
-    padding: 20,
+
   },
   text: {
     fontSize: 18,
-    marginBottom: 10,
+    marginBottom: '20%',
+    position:'absolute'
   },
 });
 
