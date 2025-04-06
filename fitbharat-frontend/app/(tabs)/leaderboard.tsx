@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Alert, SafeAreaView } from 'react-native';
+import {
+  View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Alert, SafeAreaView
+} from 'react-native';
 import Animated, { FadeIn, FadeOut, Layout, SlideInLeft, SlideOutRight } from 'react-native-reanimated';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from 'axios';
 
 interface Friend {
   id: string;
@@ -15,20 +19,49 @@ const Leaderboard: React.FC = () => {
   const [showRequests, setShowRequests] = useState<boolean>(false);
 
   useEffect(() => {
-    const fetchedFriends: Friend[] = [
-      { id: '1', name: 'Ketan', xp: 250, profileImage: require('../../assets/images/ketan.png') },
-      { id: '2', name: 'Alok', xp: 200, profileImage: require('../../assets/images/alok.png') },
-      { id: '3', name: 'Farhana', xp: 180, profileImage: require('../../assets/images/farhana.png') },
-    ];
-
-    const fetchedRequests: Friend[] = [
-      { id: '4', name: 'Ankit', xp: 0, profileImage: require('../../assets/images/ankit.png') },
-      { id: '5', name: 'Ashish', xp: 0, profileImage: require('../../assets/images/ashish.png') },
-    ];
-
-    setFriends(fetchedFriends);
-    setFriendRequests(fetchedRequests);
+    fetchUsers();
   }, []);
+
+  const fetchUsers = async () => {
+    try {
+      const token = await AsyncStorage.getItem('authToken');
+      console.log('Retrieved Token:', token);
+
+      if (!token) {
+        Alert.alert('Unauthorized', 'Please log in first.');
+        return;
+      }
+
+      const res = await axios.get('http://192.168.29.119:8001/users/usernames', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const fetchedFriends: Friend[] = res.data.usernames.map((name: string, index: number) => ({
+        id: `${index}`,
+        name,
+        xp: Math.floor(Math.random() * 300), // Placeholder XP
+        profileImage: require('../../assets/images/default.png'), // Default avatar
+      }));
+
+      setFriends(fetchedFriends);
+
+      // Sample request data (replace when backend for requests is ready)
+      setFriendRequests([
+        { id: '100', name: 'Sample Request', xp: 0, profileImage: require('../../assets/images/default.png') }
+      ]);
+
+    } catch (error: any) {
+      console.error('Fetch Users Error:', error.response?.data || error.message);
+
+      if (error.response?.status === 401) {
+        Alert.alert('Unauthorized', 'Session expired. Please log in again.');
+      } else {
+        Alert.alert('Error', 'Failed to fetch users from server.');
+      }
+    }
+  };
 
   const handleAcceptRequest = (friend: Friend) => {
     setFriends([...friends, friend]);
@@ -166,11 +199,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 12,
     marginBottom: 10,
-    shadowColor: '#000',
-    shadowOpacity: 0.2,
-    shadowOffset: { width: 0, height: 2 },
-    shadowRadius: 5,
-    elevation: 3,
   },
   requestInfo: {
     flex: 1,
@@ -185,13 +213,13 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   acceptButton: {
-    backgroundColor: '#00C851', // Bright green
+    backgroundColor: '#00C851',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
   },
   declineButton: {
-    backgroundColor: '#FF4444', // Bright red
+    backgroundColor: '#FF4444',
     paddingVertical: 6,
     paddingHorizontal: 12,
     borderRadius: 8,
