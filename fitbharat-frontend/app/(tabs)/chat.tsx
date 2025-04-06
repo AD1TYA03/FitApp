@@ -1,15 +1,13 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Image, FlatList, TextInput, TouchableOpacity, ActivityIndicator, SafeAreaView } from 'react-native';
-import io from 'socket.io-client';
+import io, { Socket } from 'socket.io-client';
 import { Feather } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
-import 'react-native-get-random-values'; // Import the polyfill
-
-const socket = io('http://192.168.29.91:3001');
+import 'react-native-get-random-values';
 
 interface Message {
     id: string;
-    sender: 'You' | string;
+    sender: string;
     text: string;
     timestamp: number;
 }
@@ -17,91 +15,322 @@ interface Message {
 interface Chat {
     id: string;
     name: string;
-    image: string;
+    image: any;
+    type: 'private' | 'group';
 }
 
 interface Story {
     id: string;
     name: string;
-    image: string | null;
+    image: any | null;
 }
 
-const ChatScreen: React.FC = () => {
-  const [stories, setStories] = useState<Story[]>([
+const USER_ID = 'ankit'; // Replace with actual logged-in user ID
+const socket: Socket = io('http://192.168.204.25:3001');
+
+// const ChatScreen: React.FC = () => {
+//     const [stories, setStories] = useState<Story[]>([
+//         { id: 'add', name: 'Add Story', image: null },
+//         { id: 'ankit', name: 'Ankit', image: require('../../assets/images/ankit.png') },
+//         { id: 'farhana', name: 'Farhana', image: require('../../assets/images/farhana.png') },
+//         { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png') },
+//     ]);
+
+//     const [chats, setChats] = useState<Chat[]>([
+//         { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png'), type: 'private' },
+//         { id: 'group_123', name: 'Morning Runners', image: require('../../assets/images/cardio.png'), type: 'group' },
+//     ]);
+
+//     const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+//     const [messages, setMessages] = useState<{ [chatId: string]: Message[] }>({});
+//     const [messageInput, setMessageInput] = useState('');
+//     const [loadingMessages, setLoadingMessages] = useState(false);
+
+//     useEffect(() => {
+//         socket.on('connect', () => {
+//             console.log('Connected to socket server');
+//             socket.emit('join', { userId: USER_ID });
+//         });
+
+//         socket.on('receiveMessage', ({ chatId, message }: { chatId: string, message: Message }) => {
+//             setMessages(prev => ({
+//                 ...prev,
+//                 [chatId]: [...(prev[chatId] || []), { ...message, id: uuidv4() }]
+//             }));
+//         });
+
+//         socket.on('chatHistory', ({ chatId, messages: history }: { chatId: string, messages: Message[] }) => {
+//             setMessages(prev => ({
+//                 ...prev,
+//                 [chatId]: history.map(message => ({ ...message, id: uuidv4() }))
+//             }));
+//             setLoadingMessages(false); // Hide loading indicator after fetching history
+//         });
+
+//         socket.on('error', (error: { message: string }) => {
+//             console.error('Socket error:', error.message);
+//             setLoadingMessages(false); // Hide loading indicator if an error occurs
+//         });
+
+//         return () => {
+//             socket.disconnect();
+//         };
+//     }, []);
+
+//     const handleChatSelection = (chat: Chat) => {        
+//         setSelectedChat(chat);
+//         if (!messages[chat.id]) {
+//             console.log(chat.id);
+
+//             setLoadingMessages(true); // Show loading indicator while fetching history
+//             socket.emit('getChatHistory', { chatId: chat.id }); // Request chat history from the server
+//         }
+//     };
+
+//     const sendMessage = () => {
+//         if (!messageInput || !selectedChat) return;
+
+//         const isGroup = selectedChat.type === 'group';
+
+//         const message: Message = {
+//             id: uuidv4(),
+//             sender: USER_ID,
+//             text: messageInput,
+//             timestamp: Date.now(),
+//         };
+
+//         socket.emit('sendMessage', {
+//             chatId: selectedChat.id,
+//             message,
+//             isGroup,
+//         });
+
+//         setMessages(prev => ({
+//             ...prev,
+//             [selectedChat.id]: [...(prev[selectedChat.id] || []), { ...message, sender: USER_ID }],
+//         }));
+
+//         setMessageInput('');
+//     };
+
+//     const renderMessageItem = useCallback(({ item }: { item: Message }) => (
+//         <View style={item.sender === USER_ID ? styles.sentMessage : styles.receivedMessage}>
+//             <Text style={styles.messageText}>{item.text}</Text>
+//             <Text style={styles.messageTime}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
+//         </View>
+//     ), []);
+
+//     const chatInterface = useMemo(() => {
+//         if (!selectedChat) return null;
+
+//         return (
+//             <View style={styles.chatInterface}>
+//                 {loadingMessages ? (
+//                     <ActivityIndicator size="large" color="#007AFF" />
+//                 ) : (
+//                     <FlatList
+//                         data={[...(messages[selectedChat.id] || [])].reverse()}
+//                         renderItem={renderMessageItem}
+//                         keyExtractor={(item) => item.id}
+//                         contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+//                         inverted
+//                     />
+//                 )}
+//                 <View style={styles.inputArea}>
+//                     <TextInput
+//                         style={styles.input}
+//                         value={messageInput}
+//                         onChangeText={setMessageInput}
+//                         placeholder="Type a message..."
+//                     />
+//                     <TouchableOpacity style={styles.sendButton} onPress={sendMessage}>
+//                         <Text style={styles.sendButtonText}>Send</Text>
+//                     </TouchableOpacity>
+//                 </View>
+//             </View>
+//         );
+//     }, [selectedChat, messages, messageInput, sendMessage, loadingMessages, renderMessageItem]);
+
+//     return (
+//         <SafeAreaView style={styles.container}>
+//             {selectedChat ? (
+//                 <View style={styles.chatScreen}>
+//                     <View style={styles.header}>
+//                         <TouchableOpacity onPress={() => setSelectedChat(null)}>
+//                             <Feather name="arrow-left" size={24} color="#007AFF" />
+//                         </TouchableOpacity>
+//                         <Text style={styles.title}>{selectedChat.name}</Text>
+//                     </View>
+//                     {chatInterface}
+//                 </View>
+//             ) : (
+//                 <View>
+//                     <View style={styles.header}>
+//                         <Text style={styles.title}>Chatting</Text>
+//                         <TouchableOpacity style={styles.searchButton}>
+//                             <Feather name="more-horizontal" size={24} color="#007AFF" />
+//                         </TouchableOpacity>
+//                     </View>
+
+//                     <View style={styles.storySection}>
+//                         <Text style={styles.sectionTitle}>Story</Text>
+//                         <FlatList
+//                             data={stories}
+//                             horizontal
+//                             showsHorizontalScrollIndicator={false}
+//                             keyExtractor={(item) => item.id}
+//                             renderItem={({ item }) => (
+//                                 <TouchableOpacity style={styles.storyItem}>
+//                                     {item.image ? (
+//                                         <Image source={item.image} style={styles.storyImage} />
+//                                     ) : (
+//                                         <View style={styles.addStory}>
+//                                             <Text style={styles.addStoryText}>+</Text>
+//                                         </View>
+//                                     )}
+//                                     <Text style={styles.storyName}>{item.name}</Text>
+//                                 </TouchableOpacity>
+//                             )}
+//                         />
+//                     </View>
+
+//                     <View style={styles.chatSection}>
+//                         <Text style={styles.sectionTitle}>Chat</Text>
+//                         <FlatList
+//                             data={chats}
+//                             keyExtractor={(item) => item.id}
+//                             renderItem={({ item }) => (
+//                                 <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelection(item)}>
+//                                     <Image source={item.image} style={styles.chatImage} />
+//                                     <View style={styles.chatText}>
+//                                         <Text style={styles.chatName}>{item.name}</Text>
+//                                     </View>
+//                                 </TouchableOpacity>
+//                             )}
+//                             showsVerticalScrollIndicator={false}
+//                         />
+//                     </View>
+//                 </View>
+//             )}
+//         </SafeAreaView>
+//     );
+// };
+
+const storiesofuser = [
     { id: 'add', name: 'Add Story', image: null },
     { id: 'ankit', name: 'Ankit', image: require('../../assets/images/ankit.png') },
     { id: 'farhana', name: 'Farhana', image: require('../../assets/images/farhana.png') },
-    { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png')},
-]);
-
-const [chats, setChats] = useState<Chat[]>([
-    { id: 'ankit', name: 'Ankit', image: require('../../assets/images/ankit.png') },
     { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png') },
-    { id: 'verma', name: 'Verma', image: require('../../assets/images/verma.png') },
-    { id: 'arjit', name: 'Arjit', image: require('../../assets/images/arjit.png') },
-    { id: 'ketan', name: 'Ketan', image: require('../../assets/images/ketan.png') },
-]);
+]
 
+const chatsOfUser: Chat[] = [
+    { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png'), type: 'private' },
+    { id: 'group_123', name: 'Morning Runners', image: require('../../assets/images/cardio.png'), type: 'group' },
+];
 
+const ChatScreen: React.FC = () => {
+    const [stories, setStories] = useState<Story[]>();
+    const [chats, setChats] = useState<Chat[]>();
     const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
-    const [messages, setMessages] = useState<{ [key: string]: Message[] }>({});
-    const [messageInput, setMessageInput] = useState<string>('');
-    const [loadingMessages, setLoadingMessages] = useState<boolean>(false);
+    const [messages, setMessages] = useState<{ [chatId: string]: Message[] }>({});
+    const [messageInput, setMessageInput] = useState('');
+    const [loadingMessages, setLoadingMessages] = useState(false);
+
+    // Fetch user-specific data (stories and chats) when the component mounts
+    useEffect(() => {
+        const fetchUserData = async () => {
+            // try {
+            //     // Replace with your API endpoint
+            //     const response = await fetch(`http://192.168.204.25:3001/api/user/${USER_ID}/data`);
+            //     const data = await response.json();
+
+            //     setStories(data.stories); // Set user-specific stories
+            //     setChats(data.chats); // Set user-specific chats
+            // } catch (error) {
+            //     console.error('Error fetching user data:', error);
+            // }
+            setStories(storiesofuser); 
+            setChats(chatsOfUser);
+        };
+
+        fetchUserData();
+    }, []);
 
     useEffect(() => {
-        socket.on('chatMessage', (data: { chatId: string, message: Message }) => {
-            if (data.chatId === selectedChat?.id) {
-                setMessages((prevMessages) => ({
-                    ...prevMessages,
-                    [data.chatId]: [...(prevMessages[data.chatId] || []), { ...data.message, id: uuidv4() }],
-                }));
-            }
+        socket.on('connect', () => {
+            console.log('Connected to socket server');
+            socket.emit('join', { userId: USER_ID });
+        });
+
+        socket.on('receiveMessage', ({ chatId, message }: { chatId: string, message: Message }) => {
+            setMessages(prev => ({
+                ...prev,
+                [chatId]: [...(prev[chatId] || []), { ...message, id: uuidv4() }]
+            }));
+        });
+
+        socket.on('chatHistory', ({ chatId, messages: history }: { chatId: string, messages: Message[] }) => {
+            setMessages(prev => ({
+                ...prev,
+                [chatId]: history.map(message => ({ ...message, id: uuidv4() }))
+            }));
+            setLoadingMessages(false); // Hide loading indicator after fetching history
+        });
+
+        socket.on('error', (error: { message: string }) => {
+            console.error('Socket error:', error.message);
+            setLoadingMessages(false); // Hide loading indicator if an error occurs
         });
 
         return () => {
-            socket.off('chatMessage');
+            socket.disconnect();
         };
-    }, [selectedChat]);
+    }, []);
 
-    const handleChatSelection = useCallback((chat: Chat) => {
+    const handleChatSelection = (chat: Chat) => {
         setSelectedChat(chat);
-        setLoadingMessages(true);
-        if (!messages[chat.id]) {
-            setTimeout(() => {
-                setMessages((prevMessages) => ({
-                    ...prevMessages,
-                    [chat.id]: [],
-                }));
-                setLoadingMessages(false);
-            }, 500);
-        } else {
-            setLoadingMessages(false);
-        }
-    }, [messages]);
 
-    const sendMessage = useCallback(() => {
-        if (messageInput && selectedChat) {
-            const message: Message = { sender: 'You', text: messageInput, timestamp: Date.now(), id: uuidv4() };
-            socket.emit('chatMessage', { chatId: selectedChat.id, message });
-            setMessages((prevMessages) => ({
-                ...prevMessages,
-                [selectedChat.id]: [...(prevMessages[selectedChat.id] || []), message],
-            }));
-            setMessageInput('');
+        if (!messages[chat.id]) {
+            setLoadingMessages(true); // Show loading indicator while fetching history
+            socket.emit('getChatHistory', { chatId: chat.id }); // Request chat history from the server
         }
-    }, [messageInput, selectedChat]);
+    };
+
+    const sendMessage = () => {
+        if (!messageInput || !selectedChat) return;
+
+        const isGroup = selectedChat.type === 'group';
+
+        const message: Message = {
+            id: uuidv4(),
+            sender: USER_ID,
+            text: messageInput,
+            timestamp: Date.now(),
+        };
+
+        socket.emit('sendMessage', {
+            chatId: selectedChat.id,
+            message,
+            isGroup,
+        });
+
+        setMessages(prev => ({
+            ...prev,
+            [selectedChat.id]: [...(prev[selectedChat.id] || []), { ...message, sender: USER_ID }],
+        }));
+
+        setMessageInput('');
+    };
 
     const renderMessageItem = useCallback(({ item }: { item: Message }) => (
-        <View key={item.id} style={item.sender === 'You' ? styles.sentMessage : styles.receivedMessage}>
+        <View style={item.sender === USER_ID ? styles.sentMessage : styles.receivedMessage}>
             <Text style={styles.messageText}>{item.text}</Text>
             <Text style={styles.messageTime}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
         </View>
     ), []);
 
     const chatInterface = useMemo(() => {
-        if (!selectedChat) {
-            return null;
-        }
+        if (!selectedChat) return null;
 
         return (
             <View style={styles.chatInterface}>
@@ -109,12 +338,11 @@ const [chats, setChats] = useState<Chat[]>([
                     <ActivityIndicator size="large" color="#007AFF" />
                 ) : (
                     <FlatList
-                        data={messages[selectedChat.id] || []}
+                        data={[...(messages[selectedChat.id] || [])].reverse()}
                         renderItem={renderMessageItem}
                         keyExtractor={(item) => item.id}
-                        style={styles.messageList}
-                        inverted={true}
-                        showsVerticalScrollIndicator={false}
+                        contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
+                        inverted
                     />
                 )}
                 <View style={styles.inputArea}>
@@ -157,6 +385,8 @@ const [chats, setChats] = useState<Chat[]>([
                         <Text style={styles.sectionTitle}>Story</Text>
                         <FlatList
                             data={stories}
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
                             keyExtractor={(item) => item.id}
                             renderItem={({ item }) => (
                                 <TouchableOpacity style={styles.storyItem}>
@@ -170,8 +400,6 @@ const [chats, setChats] = useState<Chat[]>([
                                     <Text style={styles.storyName}>{item.name}</Text>
                                 </TouchableOpacity>
                             )}
-                            horizontal
-                            showsHorizontalScrollIndicator={false}
                         />
                     </View>
 
@@ -181,7 +409,7 @@ const [chats, setChats] = useState<Chat[]>([
                             data={chats}
                             keyExtractor={(item) => item.id}
                             renderItem={({ item }) => (
-                                <TouchableOpacity key={item.id} style={styles.chatItem} onPress={() => handleChatSelection(item)}>
+                                <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelection(item)}>
                                     <Image source={item.image} style={styles.chatImage} />
                                     <View style={styles.chatText}>
                                         <Text style={styles.chatName}>{item.name}</Text>
