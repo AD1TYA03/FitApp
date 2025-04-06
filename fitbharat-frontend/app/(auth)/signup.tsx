@@ -35,6 +35,7 @@ export default function SignupPage() {
       }
 
       if (response.data.user) {
+        await AsyncStorage.setItem('user',JSON.stringify(response.data.user));
         console.log('User Info:', response.data.user);
       }
 
