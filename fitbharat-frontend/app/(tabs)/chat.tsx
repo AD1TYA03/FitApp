@@ -4,6 +4,7 @@ import io, { Socket } from 'socket.io-client';
 import { Feather } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-native-get-random-values';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 interface Message {
     id: string;
@@ -235,22 +236,29 @@ const ChatScreen: React.FC = () => {
     const [messages, setMessages] = useState<{ [chatId: string]: Message[] }>({});
     const [messageInput, setMessageInput] = useState('');
     const [loadingMessages, setLoadingMessages] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null); // Dynamically set user ID
 
     // Fetch user-specific data (stories and chats) when the component mounts
     useEffect(() => {
         const fetchUserData = async () => {
-            // try {
-            //     // Replace with your API endpoint
-            //     const response = await fetch(`http://192.168.204.25:3001/api/user/${USER_ID}/data`);
-            //     const data = await response.json();
+            try {
+                // Retrieve user data from AsyncStorage
+                const userData = await AsyncStorage.getItem('user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    setUserId(user.id); // Set the user ID dynamically
+                    console.log('User retrieved:', user);
 
-            //     setStories(data.stories); // Set user-specific stories
-            //     setChats(data.chats); // Set user-specific chats
-            // } catch (error) {
-            //     console.error('Error fetching user data:', error);
-            // }
-            setStories(storiesofuser); 
-            setChats(chatsOfUser);
+                    // Fetch user-specific stories and chats (replace with API call if needed)
+                    const response = await fetch(`http://192.168.204.25:3001/api/user/${user.id}/data`);
+                    const data = await response.json();
+
+                    setStories(data.stories); // Set user-specific stories
+                    setChats(data.chats); // Set user-specific chats
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
         };
 
         fetchUserData();
