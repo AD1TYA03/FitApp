@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // ChatScreen.tsx
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
@@ -5,6 +6,15 @@ import {
   TouchableOpacity, SafeAreaView, StyleSheet, KeyboardAvoidingView, Platform
 } from 'react-native';
 import { io, Socket } from 'socket.io-client';
+=======
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { View, Text, StyleSheet, Image, FlatList, TextInput, TouchableOpacity, ActivityIndicator, SafeAreaView } from 'react-native';
+import io, { Socket } from 'socket.io-client';
+import { Feather } from '@expo/vector-icons';
+import { v4 as uuidv4 } from 'uuid';
+import 'react-native-get-random-values';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+>>>>>>> fc479dcbe9cb37faabaf80e730022a4d1b7d8476
 
 interface Message {
   _id?: string;
@@ -21,6 +31,7 @@ interface Chat {
 }
 
 const ChatScreen: React.FC = () => {
+<<<<<<< HEAD
   const [socket, setSocket] = useState<Socket | null>(null);
   const [user] = useState('ankit');
   const [chats] = useState<Chat[]>([
@@ -38,6 +49,38 @@ const ChatScreen: React.FC = () => {
   const [isTyping, setIsTyping] = useState(false);
 
   const flatListRef = useRef<FlatList<Message>>(null);
+=======
+    const [stories, setStories] = useState<Story[]>();
+    const [chats, setChats] = useState<Chat[]>();
+    const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+    const [messages, setMessages] = useState<{ [chatId: string]: Message[] }>({});
+    const [messageInput, setMessageInput] = useState('');
+    const [loadingMessages, setLoadingMessages] = useState(false);
+    const [userId, setUserId] = useState<string | null>(null); // Dynamically set user ID
+
+    // Fetch user-specific data (stories and chats) when the component mounts
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                // Retrieve user data from AsyncStorage
+                const userData = await AsyncStorage.getItem('user');
+                if (userData) {
+                    const user = JSON.parse(userData);
+                    setUserId(user.id); // Set the user ID dynamically
+                    console.log('User retrieved:', user);
+
+                    // Fetch user-specific stories and chats (replace with API call if needed)
+                    const response = await fetch(`http://192.168.204.25:3001/api/user/${user.id}/data`);
+                    const data = await response.json();
+
+                    setStories(data.stories); // Set user-specific stories
+                    setChats(data.chats); // Set user-specific chats
+                }
+            } catch (error) {
+                console.error('Error fetching user data:', error);
+            }
+        };
+>>>>>>> fc479dcbe9cb37faabaf80e730022a4d1b7d8476
 
   // 🔌 Connect to socket
   useEffect(() => {

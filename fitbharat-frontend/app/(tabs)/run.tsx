@@ -39,6 +39,7 @@ export default function Path() {
       Alert.alert("Missing Info", "Please set start/end points and fetch route first.");
       return;
     }
+    
 
     try {
       const res = await fetch("http://192.168.29.119:8002/api/paths/save-path", {
