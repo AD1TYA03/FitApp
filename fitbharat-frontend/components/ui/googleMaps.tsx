@@ -38,7 +38,7 @@ const GoogleMaps = ({
 
     const fetchNearbyPaths = useCallback(async (latitude: number, longitude: number) => {
         try {
-            const res = await fetch(`http://192.168.29.119:8001/api/paths/nearby-paths?latitude=${latitude}&longitude=${longitude}`);
+            const res = await fetch(`http://192.168.29.119:8002/api/paths/nearby-paths?latitude=${latitude}&longitude=${longitude}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to fetch paths.");
             setNearbyPaths(data.paths);

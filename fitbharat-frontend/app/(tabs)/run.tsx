@@ -42,7 +42,7 @@ export default function Path() {
     
 
     try {
-      const res = await fetch("http://192.168.29.119:8001/api/paths/save-path", {
+      const res = await fetch("http://192.168.29.119:8002/api/paths/save-path", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -154,3 +154,211 @@ const styles = StyleSheet.create({
     borderRadius: 50,
   },
 });
+
+
+// // run.tsx
+// import React, { useState, useEffect } from 'react';
+// import { StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
+// import { SafeAreaView } from 'react-native-safe-area-context';
+// import { MaterialIcons } from '@expo/vector-icons';
+// import GoogleMaps from '@/components/ui/googleMaps'; // Adjust the import path as needed
+// import { Colors } from '@/constants/Colors'; // Adjust the import path as needed
+// import * as Location from 'expo-location';
+
+// export interface IPointLocation {
+//   latitude: number;
+//   longitude: number;
+// }
+
+// export default function Run() {
+//   const [currentLocation, setCurrentLocation] = useState<IPointLocation | null>(null);
+//   const [isRunning, setIsRunning] = useState(false);
+//   const [pathCoordinates, setPathCoordinates] = useState<IPointLocation[]>([]);
+//   const [startTime, setStartTime] = useState<Date | null>(null);
+//   const [elapsedTime, setElapsedTime] = useState(0);
+//   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
+
+//   useEffect(() => {
+//     (async () => {
+//       let { status } = await Location.requestForegroundPermissionsAsync();
+//       if (status !== 'granted') {
+//         Alert.alert('Permission denied', 'Please enable location services for this app.');
+//         return;
+//       }
+
+//       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+//       setCurrentLocation({
+//         latitude: location.coords.latitude,
+//         longitude: location.coords.longitude,
+//       });
+//     })();
+//   }, []);
+
+//   useEffect(() => {
+//     if (isRunning) {
+//       setStartTime(new Date());
+//       const interval = setInterval(async () => {
+//         try {
+//           let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+//           const newCoordinate: IPointLocation = {
+//             latitude: location.coords.latitude,
+//             longitude: location.coords.longitude,
+//           };
+//           setPathCoordinates((prevCoords) => [...prevCoords, newCoordinate]);
+//           setElapsedTime((prevTime) => prevTime + 1); // Increment every second
+//         } catch (error: any) {
+//           console.error("Error getting location during run:", error);
+//           Alert.alert("Location Error", "Could not retrieve current location. Stopping run.");
+//           setIsRunning(false);
+//         }
+//       }, 1000);
+//       setIntervalId(interval);
+//     } else if (intervalId) {
+//       clearInterval(intervalId);
+//       setIntervalId(null);
+//     }
+
+//     return () => {
+//       if (intervalId) {
+//         clearInterval(intervalId);
+//       }
+//     };
+//   }, [isRunning]);
+
+//   const formatTime = (totalSeconds: number): string => {
+//     const minutes = Math.floor(totalSeconds / 60);
+//     const seconds = totalSeconds % 60;
+//     const formattedMinutes = String(minutes).padStart(2, '0');
+//     const formattedSeconds = String(seconds).padStart(2, '0');
+//     return `${formattedMinutes}:${formattedSeconds}`;
+//   };
+
+//   const toggleRun = () => {
+//     setIsRunning((prev) => !prev);
+//     if (!isRunning) {
+//       setPathCoordinates([]); // Clear previous path on starting a new run
+//       setElapsedTime(0);
+//     }
+//   };
+
+//   const saveRun = async () => {
+//     if (pathCoordinates.length > 1 && startTime) {
+//       try {
+//         const endTime = new Date();
+//         const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
+
+//         const res = await fetch("http://192.168.249.86:8001/api/runs/save-run", {
+//           method: "POST",
+//           headers: { "Content-Type": "application/json" },
+//           body: JSON.stringify({
+//             startTime: startTime.toISOString(),
+//             endTime: endTime.toISOString(),
+//             duration: duration,
+//             path: pathCoordinates,
+//           }),
+//         });
+
+//         const data = await res.json();
+//         if (!res.ok) throw new Error(data.error || "Save failed");
+//         Alert.alert("Success", "Run saved!");
+//         setPathCoordinates([]);
+//         setElapsedTime(0);
+//         setStartTime(null);
+//       } catch (err) {
+//         console.error("Save run error:", err);
+//         Alert.alert("Error", "Failed to save run.");
+//       }
+//     } else {
+//       Alert.alert("Info", "No run data to save.");
+//     }
+//   };
+
+//   return (
+//     <View style={styles.container}>
+//       {currentLocation && (
+//         <GoogleMaps
+//           initialRegion={{
+//             latitude: currentLocation.latitude,
+//             longitude: currentLocation.longitude,
+//             latitudeDelta: 0.02,
+//             longitudeDelta: 0.02,
+//           }}
+//           currentLocation={currentLocation}
+//           pathCoordinates={pathCoordinates}
+//         />
+//       )}
+
+//       <SafeAreaView style={styles.overlay}>
+//         <View style={styles.controls}>
+//           <View style={styles.infoContainer}>
+//             <Text style={styles.infoText}>Status: {isRunning ? 'Running' : 'Stopped'}</Text>
+//             <Text style={styles.infoText}>Time: {formatTime(elapsedTime)}</Text>
+//             <Text style={styles.infoText}>Coordinates: {currentLocation ? `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}` : 'Fetching...'}</Text>
+//           </View>
+
+//           <TouchableOpacity style={[styles.runButton, { backgroundColor: isRunning ? 'red' : 'green' }]} onPress={toggleRun}>
+//             <Text style={styles.runButtonText}>{isRunning ? 'Stop' : 'Start'} Run</Text>
+//           </TouchableOpacity>
+
+//           {pathCoordinates.length > 1 && !isRunning && startTime && (
+//             <TouchableOpacity style={styles.saveButton} onPress={saveRun}>
+//               <MaterialIcons name="save-alt" size={24} color="#fff" />
+//               <Text style={styles.saveButtonText}>Save Run</Text>
+//             </TouchableOpacity>
+//           )}
+//         </View>
+//       </SafeAreaView>
+//     </View>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//   },
+//   overlay: {
+//     position: 'absolute',
+//     bottom: 20,
+//     left: 20,
+//     right: 20,
+//   },
+//   controls: {
+//     backgroundColor: 'rgba(0,0,0,0.6)',
+//     borderRadius: 10,
+//     padding: 15,
+//   },
+//   infoContainer: {
+//     marginBottom: 15,
+//   },
+//   infoText: {
+//     color: '#fff',
+//     fontSize: 16,
+//     marginBottom: 5,
+//   },
+//   runButton: {
+//     backgroundColor: 'green',
+//     paddingVertical: 15,
+//     borderRadius: 8,
+//     alignItems: 'center',
+//   },
+//   runButtonText: {
+//     color: '#fff',
+//     fontSize: 18,
+//     fontWeight: 'bold',
+//   },
+//   saveButton: {
+//     backgroundColor: '#3f51b5',
+//     padding: 15,
+//     borderRadius: 8,
+//     alignItems: 'center',
+//     marginTop: 10,
+//     flexDirection: 'row',
+//     justifyContent: 'center',
+//   },
+//   saveButtonText: {
+//     color: '#fff',
+//     fontSize: 16,
+//     fontWeight: 'bold',
+//     marginLeft: 8,
+//   },
+// });
