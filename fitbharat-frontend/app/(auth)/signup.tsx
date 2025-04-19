@@ -5,13 +5,14 @@ import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SignupPage() {
-  const [username, setUsername] = useState('');
+  const [userid, setUserid] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handleSignup = async () => {
-    if (!username || !email || !password) {
+    if (!username || !email || !password || !userid) {
       Alert.alert('Error', 'Please fill all fields.');
       return;
     }
@@ -19,8 +20,9 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://192.168.204.25:8001/auth/register', {
+      const response = await axios.post('http://192.168.201.25:8001/auth/register', {
         name: username,
+        userid: userid,
         email: email,
         password: password,
       });
@@ -29,17 +31,9 @@ export default function SignupPage() {
       console.log('Signup successful:', response.data);
       Alert.alert('Signup Success', response.data.message || 'Account created successfully!');
 
-      if (response.data.token) {
-        await AsyncStorage.setItem('authToken', response.data.token);
-        console.log('Token stored:', response.data.token);
+      if (response.status === 201) {
+        router.push('/(auth)/login');
       }
-
-      if (response.data.user) {
-        await AsyncStorage.setItem('user',JSON.stringify(response.data.user));
-        console.log('User Info:', response.data.user);
-      }
-
-      router.push('/(tabs)/home');
 
     } catch (error) {
       setLoading(false);
@@ -61,10 +55,10 @@ export default function SignupPage() {
 
         <TextInput
           style={styles.input}
-          placeholder="Username"
+          placeholder="Unique user ID"
           placeholderTextColor="#ccc"
-          value={username}
-          onChangeText={setUsername}
+          value={userid}
+          onChangeText={setUserid}
         />
 
         <TextInput
@@ -75,6 +69,14 @@ export default function SignupPage() {
           onChangeText={setEmail}
           keyboardType="email-address"
           autoCapitalize="none"
+        />
+
+        <TextInput
+          style={styles.input}
+          placeholder="FullName"
+          placeholderTextColor="#ccc"
+          value={username}
+          onChangeText={setUsername}
         />
 
         <TextInput

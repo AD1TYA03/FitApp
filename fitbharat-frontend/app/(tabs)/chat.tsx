@@ -5,10 +5,10 @@ import { Feather } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { router } from 'expo-router';
 
 interface Message {
-    id: string;
-    sender: string;
+    senderid: string;
     text: string;
     timestamp: number;
 }
@@ -16,7 +16,9 @@ interface Message {
 interface Chat {
     id: string;
     name: string;
-    image: any;
+    userid: string;
+    image?: any;
+    email?: string;
     type: 'private' | 'group';
 }
 
@@ -26,8 +28,17 @@ interface Story {
     image: any | null;
 }
 
+interface IUser {
+    id: string;
+    name: string;
+    email: string;
+    userid: string;
+}
+
+
+
 const USER_ID = 'ankit'; // Replace with actual logged-in user ID
-const socket: Socket = io('http://192.168.204.25:3001');
+const socket: Socket = io('http://192.168.201.25:3001');
 
 // const ChatScreen: React.FC = () => {
 //     const [stories, setStories] = useState<Story[]>([
@@ -217,63 +228,57 @@ const socket: Socket = io('http://192.168.204.25:3001');
 //     );
 // };
 
-const storiesofuser = [
+const storiesofuser: Story[] = [
     { id: 'add', name: 'Add Story', image: null },
-    { id: 'ankit', name: 'Ankit', image: require('../../assets/images/ankit.png') },
+    { id: '67fb5f320cd4053d0fba3355', name: 'Ankit', image: require('../../assets/images/ankit.png') },
     { id: 'farhana', name: 'Farhana', image: require('../../assets/images/farhana.png') },
     { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png') },
 ]
 
 const chatsOfUser: Chat[] = [
-    { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png'), type: 'private' },
-    { id: 'group_123', name: 'Morning Runners', image: require('../../assets/images/cardio.png'), type: 'group' },
+    { id: '67fb5f320cd4053d0fba3355', name: 'Alok Kumar', userid: 'alok', email: 'alok@gmail.com', type: 'private' },
+    { id: '67fbb31522a90f53fae6fd97', name: 'Ankit kushwaha', userid: 'ankit', email: 'ankit@gmail.com', type: 'private' },
+    { id: '67fb5f320cd4053sdfba3355', name: 'Morning Runners', userid: 'group_123', type: 'group' },
 ];
 
 const ChatScreen: React.FC = () => {
-    const [stories, setStories] = useState<Story[]>();
-    const [chats, setChats] = useState<Chat[]>();
+    const [user, setUser] = useState<IUser>();
+    const [stories, setStories] = useState<Story[]>(storiesofuser);
+    const [chats, setChats] = useState<Chat[]>(chatsOfUser);
     const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
     const [messages, setMessages] = useState<{ [chatId: string]: Message[] }>({});
     const [messageInput, setMessageInput] = useState('');
     const [loadingMessages, setLoadingMessages] = useState(false);
-    const [userId, setUserId] = useState<string | null>(null); // Dynamically set user ID
 
-    // Fetch user-specific data (stories and chats) when the component mounts
     useEffect(() => {
-        const fetchUserData = async () => {
+        const fetchUser = async () => {
             try {
-                // Retrieve user data from AsyncStorage
                 const userData = await AsyncStorage.getItem('user');
                 if (userData) {
                     const user = JSON.parse(userData);
-                    setUserId(user.id); // Set the user ID dynamically
+                    setUser(user);
                     console.log('User retrieved:', user);
-
-                    // Fetch user-specific stories and chats (replace with API call if needed)
-                    const response = await fetch(`http://192.168.204.25:3001/api/user/${user.id}/data`);
-                    const data = await response.json();
-
-                    setStories(data.stories); // Set user-specific stories
-                    setChats(data.chats); // Set user-specific chats
+                }
+                else {
+                    router.push('/(auth)/login');
                 }
             } catch (error) {
                 console.error('Error fetching user data:', error);
             }
         };
-
-        fetchUserData();
+        fetchUser();
     }, []);
 
     useEffect(() => {
         socket.on('connect', () => {
             console.log('Connected to socket server');
-            socket.emit('join', { userId: USER_ID });
+            socket.emit('online-socket', { Id: user.id });
         });
 
-        socket.on('receiveMessage', ({ chatId, message }: { chatId: string, message: Message }) => {
+        socket.on('receiveMessage', ({ recieverid, message }: { recieverid: string, message: Message }) => {
             setMessages(prev => ({
                 ...prev,
-                [chatId]: [...(prev[chatId] || []), { ...message, id: uuidv4() }]
+                [recieverid]: [...(prev[recieverid] || []), { ...message, id: uuidv4() }]
             }));
         });
 
@@ -300,6 +305,8 @@ const ChatScreen: React.FC = () => {
 
         if (!messages[chat.id]) {
             setLoadingMessages(true); // Show loading indicator while fetching history
+            console.log(chat.id);
+            
             socket.emit('getChatHistory', { chatId: chat.id }); // Request chat history from the server
         }
     };
@@ -310,14 +317,13 @@ const ChatScreen: React.FC = () => {
         const isGroup = selectedChat.type === 'group';
 
         const message: Message = {
-            id: uuidv4(),
-            sender: USER_ID,
+            senderid: user.id,
             text: messageInput,
             timestamp: Date.now(),
         };
 
         socket.emit('sendMessage', {
-            chatId: selectedChat.id,
+            recieverid: selectedChat.id,
             message,
             isGroup,
         });
@@ -331,7 +337,7 @@ const ChatScreen: React.FC = () => {
     };
 
     const renderMessageItem = useCallback(({ item }: { item: Message }) => (
-        <View style={item.sender === USER_ID ? styles.sentMessage : styles.receivedMessage}>
+        <View style={item.senderid === user.id ? styles.sentMessage : styles.receivedMessage}>
             <Text style={styles.messageText}>{item.text}</Text>
             <Text style={styles.messageTime}>{new Date(item.timestamp).toLocaleTimeString()}</Text>
         </View>
@@ -348,7 +354,7 @@ const ChatScreen: React.FC = () => {
                     <FlatList
                         data={[...(messages[selectedChat.id] || [])].reverse()}
                         renderItem={renderMessageItem}
-                        keyExtractor={(item) => item.id}
+                        keyExtractor={(item) => item.senderid}
                         contentContainerStyle={{ flexGrow: 1, justifyContent: 'flex-end' }}
                         inverted
                     />
@@ -383,7 +389,7 @@ const ChatScreen: React.FC = () => {
             ) : (
                 <View>
                     <View style={styles.header}>
-                        <Text style={styles.title}>Chatting</Text>
+                        <Text style={styles.title}>{user?.name}</Text>
                         <TouchableOpacity style={styles.searchButton}>
                             <Feather name="more-horizontal" size={24} color="#007AFF" />
                         </TouchableOpacity>
