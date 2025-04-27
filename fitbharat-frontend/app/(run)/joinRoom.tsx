@@ -4,23 +4,16 @@ import { useRouter } from "expo-router";
 
 export default function JoinRoom() {
     const [roomCode, setRoomCode] = useState('');
-    const [userName, setUserName] = useState('');
     const router = useRouter();
 
     const handleJoin = () => {
-        if (!roomCode || !userName) {
+        if (!roomCode) {
             Alert.alert('Error', 'Please enter both Room Code and Your Name.');
             return;
         }
 
         // Navigate to LiveMap page and send userName and roomCode
-        router.push({
-            pathname: "/(run)/livemap",
-            params: {
-                roomCode,
-                userId: userName.trim(),  // userId will be the name (or you can generate unique id)
-            },
-        });
+        router.push(`/(run)/livemap?roomCode=${roomCode}`);
     };
 
     return (
@@ -32,13 +25,6 @@ export default function JoinRoom() {
                 placeholder="Enter Room Code"
                 value={roomCode}
                 onChangeText={setRoomCode}
-            />
-
-            <TextInput
-                style={styles.input}
-                placeholder="Enter Your Name"
-                value={userName}
-                onChangeText={setUserName}
             />
 
             <TouchableOpacity style={styles.button} onPress={handleJoin}>

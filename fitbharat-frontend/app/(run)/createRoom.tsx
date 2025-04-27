@@ -60,7 +60,7 @@ export default function CreateRoom() {
 
                     if (data.success) {
                         console.log("Room created successfully:", data.room);
-                        router.push(`/(run)/livemap?roomcode=${data.room.roomCode}`);
+                        router.push(`/(run)/livemap?roomCode=${data.room.roomCode}`);
                     } else {
                         console.log("Failed to create room:", data.error);
                         Alert.alert("Error", data.error || "Failed to create room.");

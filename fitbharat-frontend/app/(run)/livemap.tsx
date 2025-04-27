@@ -1,36 +1,54 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useLayoutEffect } from "react";
 import { View, StyleSheet, Text } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
 import * as Location from "expo-location";
 import { io, Socket } from "socket.io-client";
 import { useLocalSearchParams } from "expo-router";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useNavigation, useRoute } from '@react-navigation/native';
 
 interface IUserLocation {
     userId: string;
     latitude: number;
     longitude: number;
+    socketId: string;
 }
 
-export default function LiveMap({ route }: any) {
+export default function LiveMap() {
     const { roomCode } = useLocalSearchParams();
+
     const [pathPoints, setPathPoints] = useState<{ latitude: number; longitude: number }[]>([]);
     const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
     const [users, setUsers] = useState<IUserLocation[]>([]);
     const mapRef = useRef<MapView>(null);
     const socketRef = useRef<Socket | null>(null);
+    const [userId, setUserId] = useState(null);
+    const navigation = useNavigation();
+
+    useLayoutEffect(() => {
+        navigation.setOptions({
+            title: roomCode,
+        });
+    }, [navigation]);
 
 
     useEffect(() => {
         const fetchPath = async () => {
             try {
-                const response = await fetch(`http://192.168.28.25:8003/path/${roomCode}`);
+                console.log("Fetching path for room code:", roomCode);
+                const response = await fetch(`http://192.168.28.25:8003/room/get-room?roomCode=${roomCode}`);
                 const data = await response.json();
-                if (data.path) {
-                    const coordinates = data.path.route.coordinates.map(([lng, lat]: [number, number]) => ({
+                console.log(data.room);
+
+                if (data.room) {
+                    const coordinates = data.room.route.coordinates.map(([lng, lat]: [number, number]) => ({
                         latitude: lat,
                         longitude: lng,
                     }));
                     setPathPoints(coordinates);
+                    console.log("Path points:", pathPoints);
+                    console.log("Coordinates:", coordinates);
+
                 } else {
                     console.error("No path found for the given room code.");
                 }
@@ -40,6 +58,19 @@ export default function LiveMap({ route }: any) {
         };
         fetchPath();
     }, [roomCode]);
+
+    useEffect(() => {
+        (async () => {
+            const user = await AsyncStorage.getItem("user");
+            if (!user) {
+                console.error("User not found in AsyncStorage");
+                return;
+            }
+            const parsedUser = JSON.parse(user);
+            setUserId(parsedUser.userid);
+        })();
+    }, []);
+
 
     useEffect(() => {
         (async () => {
@@ -57,20 +88,28 @@ export default function LiveMap({ route }: any) {
                 transports: ["websocket"], // Important to avoid polling multiple times
             });
 
+            console.log("User ID:", userId);
+
+
             socketRef.current.on("connect", () => {
                 console.log("Socket connected:", socketRef.current?.id);
                 socketRef.current?.emit("join-room", { roomCode, userId });
             });
 
             socketRef.current.on("room-users", (users: IUserLocation[]) => {
-                setUsers(users);
+                const safeUsers = users.map(user => ({
+                    ...user,
+                    userId: user.userId || "UNKNOWN",
+                }));
+                setUsers(safeUsers);
+                console.log("Users in room:", safeUsers);
             });
         })();
 
         return () => {
             socketRef.current?.disconnect();
         };
-    }, []);
+    }, [userId]);
 
     useEffect(() => {
         if (!location || !socketRef.current) return;
@@ -104,6 +143,14 @@ export default function LiveMap({ route }: any) {
                     }}
                     showsUserLocation
                 >
+                    {pathPoints.length > 0 && (
+                        <Polyline
+                            coordinates={pathPoints}
+                            strokeColor="#4A90E2"
+                            strokeWidth={4}
+                            lineDashPattern={[10, 3]}
+                        />
+                    )}
                     {users.map((user) => (
                         <Marker
                             key={user.userId}
@@ -111,16 +158,9 @@ export default function LiveMap({ route }: any) {
                                 latitude: user.latitude,
                                 longitude: user.longitude,
                             }}
-                            anchor={{ x: 0.5, y: 1 }} // Important: makes the pointy part touch the location
+                            anchor={{ x: 0.5, y: 0.5 }}
                         >
-                            {pathPoints.length > 0 && (
-                                <Polyline
-                                    coordinates={pathPoints}
-                                    strokeColor="#4A90E2"
-                                    strokeWidth={4}
-                                    lineDashPattern={[10, 3]}
-                                />
-                            )}
+
                             <View style={styles.markerContainer}>
                                 <View
                                     style={[
@@ -132,7 +172,7 @@ export default function LiveMap({ route }: any) {
                                     ]}
                                 >
                                     <Text style={styles.markerText}>
-                                        {user.userId.slice(0, 5).toUpperCase()}
+                                        {user?.userId ? user.userId.slice(0, 5).toUpperCase() : "USER"}
                                     </Text>
                                 </View>
                                 <View style={styles.markerPointer} />
