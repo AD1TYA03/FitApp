@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { View, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import * as Location from "expo-location";
+import { router } from "expo-router";
 
 interface ICoord {
     latitude: number;
@@ -12,6 +13,14 @@ interface IPath {
     route: {
         coordinates: [number, number][];
     };
+    _id: string;
+    pathName: string;
+    description: string;
+    createdAt: string;
+    endLocation: ICoord;
+    startLocation: ICoord;
+    type: string;
+
 }
 
 interface Props {
@@ -36,9 +45,11 @@ const GoogleMaps = ({
     const [nearbyPaths, setNearbyPaths] = useState<IPath[]>([]);
     const [loading, setLoading] = useState(true);
 
+
+
     const fetchNearbyPaths = useCallback(async (latitude: number, longitude: number) => {
         try {
-            const res = await fetch(`http://192.168.29.119:8002/api/paths/nearby-paths?latitude=${latitude}&longitude=${longitude}`);
+            const res = await fetch(`http://192.168.28.25:8002/api/paths/nearby-paths?latitude=${latitude}&longitude=${longitude}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to fetch paths.");
             setNearbyPaths(data.paths);
@@ -92,6 +103,7 @@ const GoogleMaps = ({
                     longitudeDelta: 0.01,
                 }}
             >
+
                 {startLocation.active && (
                     <Marker
                         coordinate={startLocation}
@@ -116,7 +128,7 @@ const GoogleMaps = ({
                 {nearbyPaths.map((path, index) => (
                     <Polyline
                         tappable
-                        onPress={() => Alert.alert("Path", `Path ${index + 1} selected`)}
+                        onPress={() => router.push(`/(run)/PathDetails?route=${JSON.stringify(path.route)}&pathName=${path.pathName}&description=${path.description}`)}
                         key={index}
                         coordinates={path.route.coordinates.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))}
                         strokeWidth={5}

@@ -1,9 +1,12 @@
 import GoogleMaps from "@/components/ui/googleMaps";
-import { Colors } from "@/constants/Colors";
 import { MaterialIcons } from "@expo/vector-icons";
+import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
+import { StyleSheet, View, Text, TouchableOpacity, TextInput, Alert, ActivityIndicator, Modal } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+
+
+
 
 export interface IPointLocation {
   active?: boolean;
@@ -11,13 +14,33 @@ export interface IPointLocation {
   longitude: number;
 }
 
+const reloadPage = () => {
+  router.reload();
+};
+
 export default function Path() {
   const [routeCoords, setRouteCoords] = useState<IPointLocation[]>([]);
   const [location, setLocation] = useState<IPointLocation>({ latitude: 0, longitude: 0 });
   const [startLocation, setStartLocation] = useState<IPointLocation>({ active: false, latitude: 0, longitude: 0 });
-  const [endLocation, setEndLocation] = useState<IPointLocation>({ active: false, latitude: 0.1, longitude: 0.1 });
+  const [endLocation, setEndLocation] = useState<IPointLocation>({ active: false, latitude: 0.001, longitude: 0.001 });
+  const [fetchLoading, setFetchLoading] = useState<boolean>(false);
+
+  // New states for modal
+  const [modalVisible, setModalVisible] = useState(false);
+  const [pathName, setPathName] = useState("");
+  const [description, setDescription] = useState("");
+  const [saveLoading, setSaveLoading] = useState(false);
+
+
+
 
   const fetchRoute = async () => {
+    setFetchLoading(true);
+    if (!startLocation.active || !endLocation.active) {
+      Alert.alert("Set Start and End locations first.");
+      setFetchLoading(false);
+      return;
+    }
     const osrmUrl = `https://router.project-osrm.org/route/v1/walking/${startLocation.longitude},${startLocation.latitude};${endLocation.longitude},${endLocation.latitude}?overview=full&geometries=geojson`;
     try {
       const res = await fetch(osrmUrl);
@@ -32,33 +55,61 @@ export default function Path() {
       console.error("Fetch route error:", err);
       Alert.alert("Error", "Could not fetch route.");
     }
+    setFetchLoading(false);
   };
 
-  const saveRoute = async () => {
+  const openSaveModal = () => {
     if (!startLocation.active || !endLocation.active || routeCoords.length === 0) {
       Alert.alert("Missing Info", "Please set start/end points and fetch route first.");
       return;
     }
-    
+    setModalVisible(true);
+  };
 
+  const saveRoute = async () => {
+    if (!pathName.trim()) {
+      Alert.alert("Validation", "Please enter a path name.");
+      return;
+    }
+    setSaveLoading(true);
     try {
-      const res = await fetch("http://192.168.29.119:8002/api/paths/save-path", {
+      const res = await fetch("http://192.168.28.25:8002/api/paths/save-path", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           startLocation,
           endLocation,
           route: routeCoords,
+          name: pathName,
+          description: description,
         }),
       });
 
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Save failed");
+
       Alert.alert("Success", "Route saved!");
+      setModalVisible(false);
+      setPathName("");
+      setDescription("");
     } catch (err) {
       console.error("Save error:", err);
       Alert.alert("Error", "Failed to save route.");
     }
+    setSaveLoading(false);
+  };
+
+  const adjustLocation = (idx: number) => {
+    const offset = idx === 0 ? 0.0 : 0.002;
+    return {
+      active: true,
+      latitude: location.latitude + offset,
+      longitude: location.longitude + offset,
+    };
+  };
+
+  const handleOpenJoinRoom = () => {
+    router.push("/(run)/joinRoom");  // 👈 make sure this matches your route path
   };
 
   return (
@@ -72,45 +123,84 @@ export default function Path() {
         endLocation={endLocation}
         routeCoords={routeCoords}
       />
+
       <SafeAreaView style={styles.overlay}>
         <View style={styles.controls}>
-          {[["Start", "blue", setStartLocation], ["End", "red", setEndLocation]].map(([label, color, setter], idx) => (
-            <View style={styles.inputGroup} key={idx}>
-              <TextInput
-                placeholder={`${label} Point`}
-                placeholderTextColor="#aaa"
-                style={styles.input}
-                value={
-                  (idx === 0 ? startLocation : endLocation).active
-                    ? `${(idx === 0 ? startLocation : endLocation).latitude.toFixed(5)}, ${(idx === 0 ? startLocation : endLocation).longitude.toFixed(5)}`
-                    : ""
-                }
-              />
-              <MaterialIcons
-                name="add-location-alt"
-                size={24}
-                color={color as string}
-                onPress={() =>
-                  setter({
-                    active: true,
-                    latitude: location.latitude + idx * 0.001,
-                    longitude: location.longitude + idx * 0.001,
-                  })
-                }
-              />
-            </View>
-          ))}
+          <View style={styles.inputsRow}>
+            {[
+              ["Start", "blue", setStartLocation],
+              ["End", "red", setEndLocation],
+            ].map(([label, color, setter]: [string, string, React.Dispatch<React.SetStateAction<IPointLocation>>], idx) => (
+              <TouchableOpacity
+                key={idx}
+                style={styles.inputButton}
+                onPress={() => setter(adjustLocation(idx))}
+              >
+                <MaterialIcons name="add-location-alt" size={20} color={color as string} />
+                <Text style={styles.buttonText}>{label}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
 
-          <View style={styles.buttons}>
-            <TouchableOpacity style={styles.button} onPress={fetchRoute}>
-              <MaterialIcons name="alt-route" size={24} color="#fff" />
+          <View style={styles.buttonsRow}>
+            <TouchableOpacity style={styles.actionButton} onPress={fetchRoute}>
+              {fetchLoading ? <ActivityIndicator size="small" color="#fff" /> : <MaterialIcons name="alt-route" size={20} color="#fff" />}
+              <Text style={styles.buttonText}>Route</Text>
             </TouchableOpacity>
-            <TouchableOpacity style={styles.button} onPress={saveRoute}>
-              <MaterialIcons name="save-alt" size={24} color="#fff" />
+
+            <TouchableOpacity style={styles.actionButton} onPress={openSaveModal}>
+              <MaterialIcons name="save-alt" size={20} color="#fff" />
+              <Text style={styles.buttonText}>Save</Text>
             </TouchableOpacity>
           </View>
         </View>
       </SafeAreaView>
+
+      {/* Save Modal */}
+      <Modal visible={modalVisible} animationType="slide" transparent={true}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Save Path</Text>
+
+            <TextInput
+              placeholder="Path Name"
+              placeholderTextColor="#ccc"
+              value={pathName}
+              onChangeText={setPathName}
+              style={styles.input}
+            />
+
+            <Text style={styles.label}>Start Location:</Text>
+            <Text style={styles.value}>{startLocation.latitude.toFixed(5)}, {startLocation.longitude.toFixed(5)}</Text>
+
+            <Text style={styles.label}>End Location:</Text>
+            <Text style={styles.value}>{endLocation.latitude.toFixed(5)}, {endLocation.longitude.toFixed(5)}</Text>
+
+            <TextInput
+              placeholder="Description"
+              placeholderTextColor="#ccc"
+              value={description}
+              onChangeText={setDescription}
+              multiline
+              numberOfLines={3}
+              style={[styles.input, { height: 80 }]}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity style={[styles.modalButton, { backgroundColor: "#ccc" }]} onPress={() => setModalVisible(false)}>
+                <Text style={styles.modalButtonText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.modalButton} onPress={saveRoute}>
+                {saveLoading ? <ActivityIndicator color="#fff" /> : <Text style={styles.modalButtonText}>Save</Text>}
+              </TouchableOpacity>
+            </View>
+
+          </View>
+        </View>
+      </Modal>
+      <TouchableOpacity style={styles.button} onPress={handleOpenJoinRoom}>
+        <Text style={styles.buttonText}>Join a Room</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -119,246 +209,107 @@ const styles = StyleSheet.create({
   container: { flex: 1 },
   overlay: {
     position: "absolute",
-    width: "100%",
-    paddingHorizontal: 10,
-    paddingTop: 10,
-  },
-  controls: {
-    flexDirection: "column",
-    backgroundColor: "#1e1e1eaa",
-    padding: 10,
-    borderRadius: 10,
-  },
-  inputGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 8,
-    backgroundColor: "#333",
-    paddingHorizontal: 10,
-    borderRadius: 8,
-  },
-  input: {
-    flex: 1,
-    color: "#fff",
-    fontSize: 16,
-    paddingVertical: 5,
-  },
-  buttons: {
-    flexDirection: "row",
-    justifyContent: "space-evenly",
-    marginTop: 10,
+    top: 5,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 5,
   },
   button: {
-    backgroundColor: "#666",
+    backgroundColor: "#4CAF50",
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    borderRadius: 10,
+    elevation: 3,
+  },
+  controls: {
+    backgroundColor: "#222",
     padding: 10,
-    borderRadius: 50,
+    borderRadius: 12,
+    elevation: 5,
+  },
+  inputsRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginBottom: 10,
+  },
+  inputButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#333",
+    padding: 8,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  buttonsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+  },
+  actionButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#4a90e2",
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+  },
+  buttonText: {
+    color: "#fff",
+    marginLeft: 5,
+    fontWeight: "bold",
+  },
+  modalContainer: {
+    flex: 1,
+    justifyContent: "center",
+    backgroundColor: "rgba(0,0,0,0.5)",
+    paddingHorizontal: 20,
+  },
+  modalContent: {
+    backgroundColor: "#333",
+    borderRadius: 10,
+    padding: 20,
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: "bold",
+    color: "#fff",
+    marginBottom: 15,
+    textAlign: "center",
+  },
+  input: {
+    backgroundColor: "#444",
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: "#fff",
+    marginBottom: 10,
+  },
+  label: {
+    color: "#aaa",
+    marginTop: 10,
+    fontSize: 14,
+  },
+  value: {
+    color: "#fff",
+    marginBottom: 5,
+  },
+  modalButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 20,
+  },
+  modalButton: {
+    backgroundColor: "#4a90e2",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    flex: 1,
+    marginHorizontal: 5,
+    alignItems: "center",
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "bold",
   },
 });
-
-
-// // run.tsx
-// import React, { useState, useEffect } from 'react';
-// import { StyleSheet, View, Text, TouchableOpacity, Alert } from 'react-native';
-// import { SafeAreaView } from 'react-native-safe-area-context';
-// import { MaterialIcons } from '@expo/vector-icons';
-// import GoogleMaps from '@/components/ui/googleMaps'; // Adjust the import path as needed
-// import { Colors } from '@/constants/Colors'; // Adjust the import path as needed
-// import * as Location from 'expo-location';
-
-// export interface IPointLocation {
-//   latitude: number;
-//   longitude: number;
-// }
-
-// export default function Run() {
-//   const [currentLocation, setCurrentLocation] = useState<IPointLocation | null>(null);
-//   const [isRunning, setIsRunning] = useState(false);
-//   const [pathCoordinates, setPathCoordinates] = useState<IPointLocation[]>([]);
-//   const [startTime, setStartTime] = useState<Date | null>(null);
-//   const [elapsedTime, setElapsedTime] = useState(0);
-//   const [intervalId, setIntervalId] = useState<NodeJS.Timeout | null>(null);
-
-//   useEffect(() => {
-//     (async () => {
-//       let { status } = await Location.requestForegroundPermissionsAsync();
-//       if (status !== 'granted') {
-//         Alert.alert('Permission denied', 'Please enable location services for this app.');
-//         return;
-//       }
-
-//       let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-//       setCurrentLocation({
-//         latitude: location.coords.latitude,
-//         longitude: location.coords.longitude,
-//       });
-//     })();
-//   }, []);
-
-//   useEffect(() => {
-//     if (isRunning) {
-//       setStartTime(new Date());
-//       const interval = setInterval(async () => {
-//         try {
-//           let location = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-//           const newCoordinate: IPointLocation = {
-//             latitude: location.coords.latitude,
-//             longitude: location.coords.longitude,
-//           };
-//           setPathCoordinates((prevCoords) => [...prevCoords, newCoordinate]);
-//           setElapsedTime((prevTime) => prevTime + 1); // Increment every second
-//         } catch (error: any) {
-//           console.error("Error getting location during run:", error);
-//           Alert.alert("Location Error", "Could not retrieve current location. Stopping run.");
-//           setIsRunning(false);
-//         }
-//       }, 1000);
-//       setIntervalId(interval);
-//     } else if (intervalId) {
-//       clearInterval(intervalId);
-//       setIntervalId(null);
-//     }
-
-//     return () => {
-//       if (intervalId) {
-//         clearInterval(intervalId);
-//       }
-//     };
-//   }, [isRunning]);
-
-//   const formatTime = (totalSeconds: number): string => {
-//     const minutes = Math.floor(totalSeconds / 60);
-//     const seconds = totalSeconds % 60;
-//     const formattedMinutes = String(minutes).padStart(2, '0');
-//     const formattedSeconds = String(seconds).padStart(2, '0');
-//     return `${formattedMinutes}:${formattedSeconds}`;
-//   };
-
-//   const toggleRun = () => {
-//     setIsRunning((prev) => !prev);
-//     if (!isRunning) {
-//       setPathCoordinates([]); // Clear previous path on starting a new run
-//       setElapsedTime(0);
-//     }
-//   };
-
-//   const saveRun = async () => {
-//     if (pathCoordinates.length > 1 && startTime) {
-//       try {
-//         const endTime = new Date();
-//         const duration = Math.floor((endTime.getTime() - startTime.getTime()) / 1000);
-
-//         const res = await fetch("http://192.168.249.86:8001/api/runs/save-run", {
-//           method: "POST",
-//           headers: { "Content-Type": "application/json" },
-//           body: JSON.stringify({
-//             startTime: startTime.toISOString(),
-//             endTime: endTime.toISOString(),
-//             duration: duration,
-//             path: pathCoordinates,
-//           }),
-//         });
-
-//         const data = await res.json();
-//         if (!res.ok) throw new Error(data.error || "Save failed");
-//         Alert.alert("Success", "Run saved!");
-//         setPathCoordinates([]);
-//         setElapsedTime(0);
-//         setStartTime(null);
-//       } catch (err) {
-//         console.error("Save run error:", err);
-//         Alert.alert("Error", "Failed to save run.");
-//       }
-//     } else {
-//       Alert.alert("Info", "No run data to save.");
-//     }
-//   };
-
-//   return (
-//     <View style={styles.container}>
-//       {currentLocation && (
-//         <GoogleMaps
-//           initialRegion={{
-//             latitude: currentLocation.latitude,
-//             longitude: currentLocation.longitude,
-//             latitudeDelta: 0.02,
-//             longitudeDelta: 0.02,
-//           }}
-//           currentLocation={currentLocation}
-//           pathCoordinates={pathCoordinates}
-//         />
-//       )}
-
-//       <SafeAreaView style={styles.overlay}>
-//         <View style={styles.controls}>
-//           <View style={styles.infoContainer}>
-//             <Text style={styles.infoText}>Status: {isRunning ? 'Running' : 'Stopped'}</Text>
-//             <Text style={styles.infoText}>Time: {formatTime(elapsedTime)}</Text>
-//             <Text style={styles.infoText}>Coordinates: {currentLocation ? `${currentLocation.latitude.toFixed(5)}, ${currentLocation.longitude.toFixed(5)}` : 'Fetching...'}</Text>
-//           </View>
-
-//           <TouchableOpacity style={[styles.runButton, { backgroundColor: isRunning ? 'red' : 'green' }]} onPress={toggleRun}>
-//             <Text style={styles.runButtonText}>{isRunning ? 'Stop' : 'Start'} Run</Text>
-//           </TouchableOpacity>
-
-//           {pathCoordinates.length > 1 && !isRunning && startTime && (
-//             <TouchableOpacity style={styles.saveButton} onPress={saveRun}>
-//               <MaterialIcons name="save-alt" size={24} color="#fff" />
-//               <Text style={styles.saveButtonText}>Save Run</Text>
-//             </TouchableOpacity>
-//           )}
-//         </View>
-//       </SafeAreaView>
-//     </View>
-//   );
-// }
-
-// const styles = StyleSheet.create({
-//   container: {
-//     flex: 1,
-//   },
-//   overlay: {
-//     position: 'absolute',
-//     bottom: 20,
-//     left: 20,
-//     right: 20,
-//   },
-//   controls: {
-//     backgroundColor: 'rgba(0,0,0,0.6)',
-//     borderRadius: 10,
-//     padding: 15,
-//   },
-//   infoContainer: {
-//     marginBottom: 15,
-//   },
-//   infoText: {
-//     color: '#fff',
-//     fontSize: 16,
-//     marginBottom: 5,
-//   },
-//   runButton: {
-//     backgroundColor: 'green',
-//     paddingVertical: 15,
-//     borderRadius: 8,
-//     alignItems: 'center',
-//   },
-//   runButtonText: {
-//     color: '#fff',
-//     fontSize: 18,
-//     fontWeight: 'bold',
-//   },
-//   saveButton: {
-//     backgroundColor: '#3f51b5',
-//     padding: 15,
-//     borderRadius: 8,
-//     alignItems: 'center',
-//     marginTop: 10,
-//     flexDirection: 'row',
-//     justifyContent: 'center',
-//   },
-//   saveButtonText: {
-//     color: '#fff',
-//     fontSize: 16,
-//     fontWeight: 'bold',
-//     marginLeft: 8,
-//   },
-// });

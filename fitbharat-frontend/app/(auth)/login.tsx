@@ -18,7 +18,7 @@ export default function LoginPage() {
     setLoading(true); // Set loading state to true
 
     try {
-      const response = await axios.post('http://192.168.232.25:8001/auth/login', {
+      const response = await axios.post('http://192.168.28.25:8001/auth/login', {
         email: email,
         password: password,
       });

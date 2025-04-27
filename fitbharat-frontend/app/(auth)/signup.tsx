@@ -20,7 +20,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://192.168.232.25:8001/auth/register', {
+      const response = await axios.post('http://192.168.28.25:8001/auth/register', {
         name: username,
         userid: userid,
         email: email,

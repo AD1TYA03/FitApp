@@ -63,7 +63,7 @@ const chatsOfUser: IChat[] = [
   { chatid: 'group_123', name: 'Morning Runners', isGroup: true, details: { id: '', name: 'Morning Runners', groupid: 'group_123', admin: { id: '67fb5f320cd4053d0fba3355', name: 'Alok Kumar', email: 'alok@gmail.com', userid: 'alok' } } },
 ];
 
-const socket = io('http://192.168.232.25:3001', {
+const socket = io('http://192.168.28.25:3001', {
   auth: {
     token: AsyncStorage.getItem('authToken'), // Send token during handshake
   },
