@@ -6,6 +6,7 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import { router } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams } from "expo-router";
+import { serverURI } from "@/utils/serverAddress";
 
 export default function CreateRoom() {
     const { route } = useLocalSearchParams();
@@ -41,7 +42,7 @@ export default function CreateRoom() {
         const userData = await AsyncStorage.getItem('user');
         if (userData) {
             try {
-                const response = await fetch("http://192.168.28.25:8003/room/create-room", {
+                const response = await fetch(`${serverURI}:8003/room/create-room`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",

@@ -51,11 +51,6 @@ export default function Page3() {
             <Text style={[styles.buttonText, styles.outlineButtonText]}>Signup</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Skip Option */}
-        <TouchableOpacity onPress={() => router.push('/home')}>
-          <Text style={styles.skipText}>Skip for now</Text>
-        </TouchableOpacity>
       </View>
     </View>
   );

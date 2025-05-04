@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Alert, ImageBackground, ActivityIndicator } from 'react-native';
 import { useState } from 'react';
 import { router } from 'expo-router';
+import { serverURI } from '@/utils/serverAddress';
 
 export default function LoginPage() {
   const [email, setEmail] = useState('');
@@ -18,7 +19,7 @@ export default function LoginPage() {
     setLoading(true); // Set loading state to true
 
     try {
-      const response = await axios.post('http://192.168.28.25:8001/auth/login', {
+      const response = await axios.post(`${serverURI}:8001/auth/login`, {
         email: email,
         password: password,
       });

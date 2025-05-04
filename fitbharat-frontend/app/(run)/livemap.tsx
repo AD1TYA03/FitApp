@@ -6,6 +6,7 @@ import { io, Socket } from "socket.io-client";
 import { useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { serverURI } from "@/utils/serverAddress";
 
 interface IUserLocation {
     userId: string;
@@ -36,7 +37,7 @@ export default function LiveMap() {
         const fetchPath = async () => {
             try {
                 console.log("Fetching path for room code:", roomCode);
-                const response = await fetch(`http://192.168.28.25:8003/room/get-room?roomCode=${roomCode}`);
+                const response = await fetch(`${serverURI}:8003/room/get-room?roomCode=${roomCode}`);
                 const data = await response.json();
                 console.log(data.room);
 
@@ -84,7 +85,7 @@ export default function LiveMap() {
             setLocation(loc.coords);
 
             // Create socket connection only once
-            socketRef.current = io("http://192.168.28.25:8003", {
+            socketRef.current = io(`${serverURI}:8003`, {
                 transports: ["websocket"], // Important to avoid polling multiple times
             });
 

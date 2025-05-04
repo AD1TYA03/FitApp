@@ -1,11 +1,12 @@
 import { io, Socket } from 'socket.io-client';
+import { serverURI } from './serverAddress';
 
 let socket: Socket | null = null;
 
 export const connectSocket = async (token: string) => {
   if (socket) return socket;
 
-  socket = io('http://192.168.28.25:3001', {
+  socket = io(`${serverURI}:3001`, {
     auth: {
       token: token, // Send token during handshake
     },

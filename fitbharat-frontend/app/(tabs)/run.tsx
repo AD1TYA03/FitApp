@@ -1,4 +1,5 @@
 import GoogleMaps from "@/components/ui/googleMaps";
+import { serverURI } from "@/utils/serverAddress";
 import { MaterialIcons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState } from "react";
@@ -73,7 +74,7 @@ export default function Path() {
     }
     setSaveLoading(true);
     try {
-      const res = await fetch("http://192.168.28.25:8002/api/paths/save-path", {
+      const res = await fetch(`${serverURI}:8002/api/paths/save-path`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

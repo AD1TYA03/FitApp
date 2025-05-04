@@ -13,7 +13,7 @@ export default function Index() {
     const checkOnboardingStatus = async () => {
       try {
         const onboardingCompleted = await AsyncStorage.getItem('onboardingCompleted');
-        setShowOnboarding(onboardingCompleted !== 'true');
+        setShowOnboarding(onboardingCompleted === 'true');
       } catch (err) {
         console.error('Error checking onboarding status:', err);
         setError('An error occurred while checking onboarding status.');
@@ -40,7 +40,7 @@ export default function Index() {
     );
   }
 
-  if ("true") {
+  if (!showOnboarding) {
     return <Redirect href="/(onboarding)" />;
   } else {
     return <Redirect href="/(auth)" />;

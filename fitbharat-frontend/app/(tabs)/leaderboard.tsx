@@ -5,6 +5,7 @@ import {
 import Animated, { FadeIn, FadeOut, Layout, SlideInLeft, SlideOutRight } from 'react-native-reanimated';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
+import { serverURI } from '@/utils/serverAddress';
 
 interface Friend {
   id: string;
@@ -32,7 +33,7 @@ const Leaderboard: React.FC = () => {
         return;
       }
 
-      const res = await axios.get('http://192.168.29.119:8001/users/usernames', {
+      const res = await axios.get(`${serverURI}:8001/users/usernames`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

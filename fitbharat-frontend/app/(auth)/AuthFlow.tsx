@@ -1,54 +1,83 @@
-import React, { useState } from 'react';
-import { View, Button, Text, StyleSheet, ActivityIndicator } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useAuth } from '../../context/AuthContext';
-import LoginScreen from './login';
-import SignupScreen from './signup';
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  Button,
+  Text,
+  StyleSheet,
+  ActivityIndicator,
+  SafeAreaView,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { useAuth } from "../../context/AuthContext";
+import LoginScreen from "./login";
+import SignupScreen from "./signup";
 
 const AuthFlow = () => {
-  const { user, logout, loading } = useAuth();
+  const { user, loading } = useAuth();
   const router = useRouter();
   const [isSignup, setIsSignup] = useState(false);
+  const [redirected, setRedirected] = useState(false);
+
+  useEffect(() => {
+    // Avoid repeated redirects
+    if (user && !redirected) {
+      router.replace("/(tabs)/home");
+      setRedirected(true);
+    }
+  }, [user, redirected]);
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <Text style={styles.text}>Checking login status...</Text>
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Checking login status...</Text>
         <ActivityIndicator size="large" />
       </View>
     );
   }
 
   if (user) {
-    return (
-      <View style={styles.container}>
-        <Text style={styles.text}>You're already logged in!</Text>
-        <Button title="Go to Home" onPress={() => router.push('/(tabs)/home')} />
-        <Button title="Logout" onPress={logout} color="red" />
-      </View>
-    );
+    return null; // While redirecting
   }
 
   return (
-    <View style={styles.container}>
-      {isSignup ? <SignupScreen /> : <LoginScreen />}
-      
-    </View>
+    <SafeAreaView style={styles.container}>
+      <View style={styles.toggleContainer}>
+        <Button
+          title={isSignup ? "Switch to Login" : "Switch to Signup"}
+          onPress={() => setIsSignup((prev) => !prev)}
+        />
+      </View>
+
+      <View style={styles.formContainer}>
+        {isSignup ? <SignupScreen /> : <LoginScreen />}
+      </View>
+    </SafeAreaView>
   );
 };
+
+export default AuthFlow;
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-
-    width: '100%',
-
+    backgroundColor: "#fff",
+    justifyContent: "center",
+    paddingHorizontal: 20,
   },
-  text: {
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginBottom: 10,
     fontSize: 18,
-    marginBottom: '20%',
-    position:'absolute'
+  },
+  toggleContainer: {
+    alignItems: "center",
+    marginBottom: 20,
+  },
+  formContainer: {
+    flex: 1,
   },
 });
-
-export default AuthFlow;

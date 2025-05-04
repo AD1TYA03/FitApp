@@ -5,10 +5,12 @@ import { Feather } from '@expo/vector-icons';
 import { v4 as uuidv4 } from 'uuid';
 import 'react-native-get-random-values';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { connectSocket } from '@/utils/socket';
+import { serverURI } from '@/utils/serverAddress';
 
 interface IMessage {
+  chatid: string;
   sender: IUser;
   reciever: IUser;
   text: string;
@@ -34,10 +36,9 @@ interface IGroup {
 
 interface IChat {
   chatid: string;
-  name: string;
   isGroup: boolean;
-  image?: any;
-  details: IUser | IGroup
+  image?: string | null;
+  members: IUser[];
 }
 
 interface Story {
@@ -56,14 +57,7 @@ const storiesofuser: Story[] = [
   { id: 'alok', name: 'Alok', image: require('../../assets/images/alok.png') },
 ]
 
-const chatsOfUser: IChat[] = [
-  { chatid: 'alok', name: 'Alok Kumar', isGroup: false, details: { id: '67fb5f320cd4053d0fba3355', name: 'Alok Kumar', email: 'alok@gmail.com', userid: 'alok' } },
-  { chatid: 'ankit', name: 'Ankit kushwaha', isGroup: false, details: { id: '67fbb31522a90f53fae6fd97', name: 'Ankit Kushwaha', email: 'ankit@gmail.com', userid: 'ankit' } },
-  { chatid: 'aman', name: 'Aman Kumar', isGroup: false, details: { id: '6804cb2559c50da418b2e71d', name: 'Aman Kumar', email: 'aman@gmail.com', userid: 'aman' } },
-  { chatid: 'group_123', name: 'Morning Runners', isGroup: true, details: { id: '', name: 'Morning Runners', groupid: 'group_123', admin: { id: '67fb5f320cd4053d0fba3355', name: 'Alok Kumar', email: 'alok@gmail.com', userid: 'alok' } } },
-];
-
-const socket = io('http://192.168.28.25:3001', {
+const socket = io(`${serverURI}:3001`, {
   auth: {
     token: AsyncStorage.getItem('authToken'), // Send token during handshake
   },
@@ -71,9 +65,11 @@ const socket = io('http://192.168.28.25:3001', {
 });
 
 const ChatScreen: React.FC = () => {
+  const { newchat }: { newchat: string } = useLocalSearchParams();
+
   const [user, setUser] = useState<IUser>();
   const [stories, setStories] = useState<Story[]>(storiesofuser);
-  const [chats, setChats] = useState<IChat[]>(chatsOfUser);
+  const [chats, setChats] = useState<IChat[]>(null);
   const [selectedChat, setSelectedChat] = useState<IChat | null>(null);
   const [messages, setMessages] = useState<{ [chatId: string]: IMessage[] }>({});
   const [messageInput, setMessageInput] = useState('');
@@ -100,6 +96,34 @@ const ChatScreen: React.FC = () => {
     };
     fetchUser();
   }, []);
+
+  useEffect(() => {
+    const fetchChats = async () => {
+      try {
+        const response = await fetch(`${serverURI}:8001/find/getAllChats`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${await AsyncStorage.getItem('authToken')}`,
+          },
+        });
+        const data = await response.json();
+        console.log('Fetched chats:', data);
+        data.chats.map((d)=>{
+          console.log(d.members);
+          
+        })
+
+        console.log('New chat:', newchat);
+        setChats(data.chats);
+      } catch (error) {
+        console.error('Error fetching chats:', error);
+      }
+    };
+    if (user) {
+      fetchChats();
+    }
+  }, [user]);
 
   useEffect(() => {
     socket.on('connect', () => {
@@ -140,7 +164,7 @@ const ChatScreen: React.FC = () => {
     return () => {
       socket.disconnect();
     };
-  }, []);
+  }, [socket]);
 
   const handleChatSelection = (chat: IChat) => {
     setSelectedChat(chat);
@@ -159,13 +183,15 @@ const ChatScreen: React.FC = () => {
     const isGroup = selectedChat.isGroup;
 
     const message: IMessage = {
-      reciever: selectedChat.isGroup ? undefined : (selectedChat.details as IUser),
+      chatid: selectedChat.chatid,
+      reciever: selectedChat.members[1],
       sender: user,
       text: messageInput,
       timestamp: Date.now(),
     };
 
-    console.log(selectedChat);
+    console.log('Sending message:', message);
+    console.log('this is selected chat', selectedChat);
 
     socket.emit('sendMessage', {
       message,
@@ -235,7 +261,7 @@ const ChatScreen: React.FC = () => {
             <TouchableOpacity onPress={() => setSelectedChat(null)}>
               <Feather name="arrow-left" size={24} color="#007AFF" />
             </TouchableOpacity>
-            <Text style={styles.title}>{selectedChat.name}</Text>
+            <Text style={styles.title}>{selectedChat.members[1].name}</Text>
           </View>
           {chatInterface}
         </View>
@@ -243,8 +269,8 @@ const ChatScreen: React.FC = () => {
         <View>
           <View style={styles.header}>
             <Text style={styles.title}>{user?.name}</Text>
-            <TouchableOpacity style={styles.searchButton}>
-              <Feather name="more-horizontal" size={24} color="#007AFF" />
+            <TouchableOpacity style={styles.searchButton} onPress={() => router.push('/(chat)/findChats')}>
+              <Feather name="search" size={24} color="#007AFF" />
             </TouchableOpacity>
           </View>
 
@@ -277,9 +303,9 @@ const ChatScreen: React.FC = () => {
               keyExtractor={(item) => item.chatid}
               renderItem={({ item }) => (
                 <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelection(item)}>
-                  <Image source={item.image} style={styles.chatImage} />
+                  <Image source={{ uri: item.image || 'https://i.ibb.co/BVBpY1fJ/image.png' }} style={styles.chatImage} />
                   <View style={styles.chatText}>
-                    <Text style={styles.chatName}>{item.name}</Text>
+                    <Text style={styles.chatName}>{item.members[1].name}</Text>
                   </View>
                 </TouchableOpacity>
               )}

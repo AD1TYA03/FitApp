@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { router } from 'expo-router';
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { serverURI } from '@/utils/serverAddress';
 
 export default function SignupPage() {
   const [userid, setUserid] = useState('');
@@ -20,7 +21,7 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const response = await axios.post('http://192.168.28.25:8001/auth/register', {
+      const response = await axios.post(`${serverURI}:8001/auth/register`, {
         name: username,
         userid: userid,
         email: email,
