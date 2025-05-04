@@ -39,16 +39,12 @@ export default function LiveMap() {
                 console.log("Fetching path for room code:", roomCode);
                 const response = await fetch(`${serverURI}:8003/room/get-room?roomCode=${roomCode}`);
                 const data = await response.json();
-                console.log(data.room);
-
                 if (data.room) {
                     const coordinates = data.room.route.coordinates.map(([lng, lat]: [number, number]) => ({
                         latitude: lat,
                         longitude: lng,
                     }));
                     setPathPoints(coordinates);
-                    console.log("Path points:", pathPoints);
-                    console.log("Coordinates:", coordinates);
 
                 } else {
                     console.error("No path found for the given room code.");
@@ -103,7 +99,6 @@ export default function LiveMap() {
                     userId: user.userId || "UNKNOWN",
                 }));
                 setUsers(safeUsers);
-                console.log("Users in room:", safeUsers);
             });
         })();
 
@@ -142,7 +137,6 @@ export default function LiveMap() {
                         latitudeDelta: 0.01,
                         longitudeDelta: 0.01,
                     }}
-                    showsUserLocation
                 >
                     {pathPoints.length > 0 && (
                         <Polyline
@@ -206,8 +200,8 @@ const styles = StyleSheet.create({
         alignItems: "center",
     },
     markerPin: {
-        width: 40,
-        height: 40,
+        width: 30,
+        height: 30,
         borderRadius: 20,
         backgroundColor: "#4A90E2",
         justifyContent: "center",
@@ -221,7 +215,7 @@ const styles = StyleSheet.create({
     },
     markerText: {
         color: "white",
-        fontSize: 10,
+        fontSize: 7,
     },
     markerPointer: {
         width: 0,

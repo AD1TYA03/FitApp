@@ -85,7 +85,6 @@ const ChatScreen: React.FC = () => {
         if (userData && token) {
           const user = JSON.parse(userData);
           setUser(user);
-          console.log('User retrieved:', user, token);
         }
         else {
           router.push('/(auth)/login');
@@ -108,13 +107,6 @@ const ChatScreen: React.FC = () => {
           },
         });
         const data = await response.json();
-        console.log('Fetched chats:', data);
-        data.chats.map((d)=>{
-          console.log(d.members);
-          
-        })
-
-        console.log('New chat:', newchat);
         setChats(data.chats);
       } catch (error) {
         console.error('Error fetching chats:', error);
@@ -128,32 +120,21 @@ const ChatScreen: React.FC = () => {
   useEffect(() => {
     socket.on('connect', () => {
       console.log('Connected to socket server');
-      socket.emit('online-socket', { Id: user.id });
     });
 
-    socket.on('receiveMessage', async ({ message }: { message: IMessage }) => {
-      console.log(" ")
-      console.log('Message received on :', message, await AsyncStorage.getItem('user'));
-      console.log(" ")
-      if (!message.sender || !message.sender.id) {
-        console.error('Invalid message received:', message);
-        return;
-      }
-
-      setMessages(prev => ({
-        ...prev,
-        [selectedChat?.chatid]: [...(prev[selectedChat?.chatid] || []), { ...message, id: uuidv4() }]
-      }));
-    });
 
     socket.on('chatHistory', ({ chatId, messages: history }: { chatId: string, messages: IMessage[] }) => {
-      const validMessages = history.filter(msg => msg.sender && msg.sender.id); // Filter out invalid messages
+      const validMessages = history.filter(msg => msg.sender && msg.sender.id);
 
       setMessages(prev => ({
         ...prev,
         [chatId]: validMessages.map(message => ({ ...message, id: uuidv4() }))
       }));
+
+
       setLoadingMessages(false);
+
+
     });
 
     socket.on('error', (error: { message: string }) => {
@@ -165,6 +146,24 @@ const ChatScreen: React.FC = () => {
       socket.disconnect();
     };
   }, [socket]);
+
+
+  useEffect(() => {
+    socket.on('receiveMessage', async ({ message }: { message: IMessage }) => {
+
+      if (!message.sender || !message.sender.id) {
+        console.error('Invalid message received:', message);
+        return;
+      }
+
+      setMessages(prev => ({
+        ...prev,
+        [message.chatid]: [...(prev[message.chatid] || []), { ...message, id: uuidv4() }]
+      }));
+
+    });
+  }, [socket])
+
 
   const handleChatSelection = (chat: IChat) => {
     setSelectedChat(chat);
@@ -184,19 +183,17 @@ const ChatScreen: React.FC = () => {
 
     const message: IMessage = {
       chatid: selectedChat.chatid,
-      reciever: selectedChat.members[1],
+      reciever: selectedChat.members[1].userid === user.userid ? selectedChat.members[0] : selectedChat.members[1],
       sender: user,
       text: messageInput,
       timestamp: Date.now(),
     };
-
-    console.log('Sending message:', message);
-    console.log('this is selected chat', selectedChat);
-
     socket.emit('sendMessage', {
       message,
       isGroup,
     });
+
+
 
     setMessages(prev => ({
       ...prev,
@@ -251,7 +248,7 @@ const ChatScreen: React.FC = () => {
         </View>
       </View>
     );
-  }, [selectedChat, messages, messageInput, sendMessage, loadingMessages, renderMessageItem]);
+  }, [messages, selectedChat, messageInput, sendMessage, loadingMessages, renderMessageItem]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -261,7 +258,7 @@ const ChatScreen: React.FC = () => {
             <TouchableOpacity onPress={() => setSelectedChat(null)}>
               <Feather name="arrow-left" size={24} color="#007AFF" />
             </TouchableOpacity>
-            <Text style={styles.title}>{selectedChat.members[1].name}</Text>
+            <Text style={styles.title}>{selectedChat.members[1].userid === user.userid ? selectedChat.members[0].name : selectedChat.members[1].name}</Text>
           </View>
           {chatInterface}
         </View>
@@ -305,7 +302,7 @@ const ChatScreen: React.FC = () => {
                 <TouchableOpacity style={styles.chatItem} onPress={() => handleChatSelection(item)}>
                   <Image source={{ uri: item.image || 'https://i.ibb.co/BVBpY1fJ/image.png' }} style={styles.chatImage} />
                   <View style={styles.chatText}>
-                    <Text style={styles.chatName}>{item.members[1].name}</Text>
+                    <Text style={styles.chatName}>{item.members[1].userid === user.userid ? item.members[0].name : item.members[1].name}</Text>
                   </View>
                 </TouchableOpacity>
               )}

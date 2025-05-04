@@ -3,6 +3,7 @@ import { View, StyleSheet, Alert, ActivityIndicator } from "react-native";
 import MapView, { Marker, Polyline, PROVIDER_DEFAULT, PROVIDER_GOOGLE, Region } from "react-native-maps";
 import * as Location from "expo-location";
 import { router } from "expo-router";
+import { serverURI } from "@/utils/serverAddress";
 
 interface ICoord {
     latitude: number;
@@ -49,7 +50,7 @@ const GoogleMaps = ({
 
     const fetchNearbyPaths = useCallback(async (latitude: number, longitude: number) => {
         try {
-            const res = await fetch(`http://192.168.28.25:8002/api/paths/nearby-paths?latitude=${latitude}&longitude=${longitude}`);
+            const res = await fetch(`${serverURI}:8002/api/paths/nearby-paths?latitude=${latitude}&longitude=${longitude}`);
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Failed to fetch paths.");
             setNearbyPaths(data.paths);
