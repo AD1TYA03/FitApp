@@ -6,7 +6,7 @@ export default function Page1() {
 
   return (
     <ImageBackground
-      source={require('../../assets/images/fitness.png')}
+      source={require('../../assets/images/fitness_image.png')}
       style={styles.background}
       resizeMode="cover"
     >

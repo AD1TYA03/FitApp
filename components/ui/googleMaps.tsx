@@ -129,7 +129,7 @@ const GoogleMaps = ({
                 {nearbyPaths.map((path, index) => (
                     <Polyline
                         tappable
-                        onPress={() => router.push(`/(run)/PathDetails?route=${JSON.stringify(path.route)}&pathName=${path.pathName}&description=${path.description}`)}
+                        onPress={() => router.push(`/(run)/PathDetails?route=${JSON.stringify(path.route)}&pathName=${path.pathName}&description=${path.description}&id=${path._id}`)}
                         key={index}
                         coordinates={path.route.coordinates.map(([lng, lat]) => ({ latitude: lat, longitude: lng }))}
                         strokeWidth={5}

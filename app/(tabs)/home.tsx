@@ -57,7 +57,7 @@ export default function HomeScreen() {
       case 'back':
         return require('../../assets/images/back.png');
       case 'cardio':
-        return require('../../assets/images/cardio.png');
+        return require('../../assets/images/cardio_image.png');
       case 'lower legs':
       case 'upper legs':
       case 'legs':

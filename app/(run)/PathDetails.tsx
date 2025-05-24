@@ -1,23 +1,45 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, TouchableOpacity, SafeAreaView } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import { router, useLocalSearchParams } from 'expo-router';
+import { serverURI } from '@/utils/serverAddress';
 
 interface CommunityMember {
-  id: string;
+  _id: string;
   name: string;
+  description: string;
+  image?: string;
+  isPrivate: boolean;
+  members: [];
+  pathid: string;
 }
 
-const mockCommunity: CommunityMember[] = [
-  { id: '1', name: 'Rohan Sharma' },
-  { id: '2', name: 'Priya Verma' },
-  { id: '3', name: 'Karan Patel' },
-  { id: '4', name: 'Sneha Singh' },
-];
 
 const PathDetailsScreen = () => {
   const navigation = useNavigation();
-  const { route, pathName, description } = useLocalSearchParams();
+  const { route, pathName, description, id } = useLocalSearchParams();
+  const [mockCommunity, setMockCommunity] = React.useState<CommunityMember[]>([]);
+
+
+  useEffect(() => {
+    const fetchGroups = async () => {
+      try {
+        const response = await fetch(`${serverURI}:8001/group/getallbypathid?pathid=${id}`);
+        const data = await response.json();
+        if (data) {
+          console.log("Groups fetched successfully:", data);
+          setMockCommunity(data);
+
+        } else {
+          console.error("No groups found for the given route.");
+        }
+      } catch (error) {
+        console.error("Error fetching groups:", error);
+      }
+    }
+    fetchGroups();
+  }, [id]);
+
 
   const handleCreateRoom = () => {
     router.push(`/(run)/createRoom?route=${route}`)
@@ -38,15 +60,22 @@ const PathDetailsScreen = () => {
       </View>
 
       {/* Community Title */}
-      <Text style={styles.communityTitle}>Community Going Together</Text>
+      <View style={{ marginBottom: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Text style={styles.communityTitle}>Communities</Text>
+        <TouchableOpacity style={{ backgroundColor: '#34D399', padding: 8, borderRadius: 8 }} onPress={() => router.push(`/(community)/create?pathid=${id}`)}>
+          <Text>Create</Text>
+        </TouchableOpacity>
+      </View>
+
     </>
   );
+
 
   return (
     <SafeAreaView style={styles.container}>
       <FlatList
         data={mockCommunity}
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item) => item._id}
         renderItem={({ item }) => (
           <View style={styles.memberCard}>
             <Text style={styles.memberName}>{item.name}</Text>
@@ -109,9 +138,10 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#374151',
     lineHeight: 22,
+    minHeight: 100,
   },
   communityTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#111827',
     marginBottom: 12,

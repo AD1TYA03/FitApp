@@ -48,7 +48,7 @@ export default function SignupPage() {
   };
 
   return (
-    <ImageBackground source={require('../../assets/images/hiit.png')} style={styles.background}>
+    <ImageBackground source={require('../../assets/images/hiit_image.png')} style={styles.background}>
       <View style={styles.overlay} />
 
       <View style={styles.container}>

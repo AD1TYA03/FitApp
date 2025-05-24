@@ -4,9 +4,9 @@ import { useRouter } from 'expo-router';
 
 const workouts = [
     { id: '1', title: 'Morning Yoga', image: require('../../assets/images/yoga.png') },
-    { id: '2', title: 'HIIT Workout', image: require('../../assets/images/hiit.png') },
+    { id: '2', title: 'HIIT Workout', image: require('../../assets/images/hiit_image.png') },
     { id: '3', title: 'Strength Training', image: require('../../assets/images/strength.png') },
-    { id: '4', title: 'Cardio Blast', image: require('../../assets/images/cardio.png') },
+    { id: '4', title: 'Cardio Blast', image: require('../../assets/images/cardio_image.png') },
 ];
 
 const WorkoutList = () => {

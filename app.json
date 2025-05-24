@@ -7,6 +7,9 @@
     "icon": "./assets/images/icon.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": [
+      "assets/images/*"
+    ],
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
@@ -62,6 +65,7 @@
       "eas": {
         "projectId": "7e3d18e0-3b2f-4e30-9d86-356444726ff7"
       }
-    }
+    },
+    "owner": "kush-ankit"
   }
 }
