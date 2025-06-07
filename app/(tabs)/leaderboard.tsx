@@ -1,84 +1,39 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
-  View, Text, StyleSheet, Image, FlatList, TouchableOpacity, Alert, SafeAreaView
+  View, Text, StyleSheet, FlatList, TouchableOpacity, Alert, SafeAreaView
 } from 'react-native';
 import Animated, { FadeIn, FadeOut, Layout, SlideInLeft, SlideOutRight } from 'react-native-reanimated';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { serverURI } from '@/utils/serverAddress';
 
-interface Friend {
-  id: string;
-  name: string;
-  xp: number;
-  profileImage: any;
-}
+// Dummy data without images
+const dummyFriends = [
+  { id: '1', name: 'Alice', xp: 120, profileImage: null },
+  { id: '2', name: 'Bob', xp: 240, profileImage: null },
+  { id: '3', name: 'Charlie', xp: 180, profileImage: null },
+];
+
+const dummyFriendRequests = [
+  { id: '4', name: 'Daisy', xp: 0, profileImage: null },
+];
 
 const Leaderboard: React.FC = () => {
-  const [friends, setFriends] = useState<Friend[]>([]);
-  const [friendRequests, setFriendRequests] = useState<Friend[]>([]);
-  const [showRequests, setShowRequests] = useState<boolean>(false);
+  const [friends, setFriends] = useState(dummyFriends);
+  const [friendRequests, setFriendRequests] = useState(dummyFriendRequests);
+  const [showRequests, setShowRequests] = useState(false);
 
-  useEffect(() => {
-    fetchUsers();
-  }, []);
-
-  const fetchUsers = async () => {
-    try {
-      const token = await AsyncStorage.getItem('authToken');
-      console.log('Retrieved Token:', token);
-
-      if (!token) {
-        Alert.alert('Unauthorized', 'Please log in first.');
-        return;
-      }
-
-      const res = await axios.get(`${serverURI}:8001/users/usernames`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
-
-      const fetchedFriends: Friend[] = res.data.usernames.map((name: string, index: number) => ({
-        id: `${index}`,
-        name,
-        xp: Math.floor(Math.random() * 300), // Placeholder XP
-        profileImage: require('../../assets/images/default.png'), // Default avatar
-      }));
-
-      setFriends(fetchedFriends);
-
-      // Sample request data (replace when backend for requests is ready)
-      setFriendRequests([
-        { id: '100', name: 'Sample Request', xp: 0, profileImage: require('../../assets/images/default.png') }
-      ]);
-
-    } catch (error: any) {
-      console.error('Fetch Users Error:', error.response?.data || error.message);
-
-      if (error.response?.status === 401) {
-        Alert.alert('Unauthorized', 'Session expired. Please log in again.');
-      } else {
-        Alert.alert('Error', 'Failed to fetch users from server.');
-      }
-    }
-  };
-
-  const handleAcceptRequest = (friend: Friend) => {
+  const handleAcceptRequest = (friend) => {
     setFriends([...friends, friend]);
-    setFriendRequests(friendRequests.filter((req) => req.id !== friend.id));
+    setFriendRequests(friendRequests.filter(req => req.id !== friend.id));
     Alert.alert('Friend Request Accepted', `${friend.name} is now your friend!`);
   };
 
-  const handleDeclineRequest = (friend: Friend) => {
-    setFriendRequests(friendRequests.filter((req) => req.id !== friend.id));
+  const handleDeclineRequest = (friend) => {
+    setFriendRequests(friendRequests.filter(req => req.id !== friend.id));
     Alert.alert('Friend Request Declined', `You declined ${friend.name}'s request.`);
   };
 
-  const renderFriendItem = ({ item, index }: { item: Friend; index: number }) => (
+  const renderFriendItem = ({ item, index }) => (
     <Animated.View style={styles.friendItem} entering={FadeIn} exiting={FadeOut} layout={Layout.springify()}>
       <Text style={styles.rank}>{index + 1}</Text>
-      <Image source={item.profileImage} style={styles.profileImage} />
       <View style={styles.friendInfo}>
         <Text style={styles.friendName}>{item.name}</Text>
         <Text style={styles.xp}>XP: {item.xp}</Text>
@@ -91,7 +46,9 @@ const Leaderboard: React.FC = () => {
       <View style={styles.header}>
         <Text style={styles.headerText}>🏆 Leaderboard</Text>
         <TouchableOpacity style={styles.requestsButton} onPress={() => setShowRequests(!showRequests)}>
-          <Text style={styles.requestsButtonText}>{showRequests ? 'Hide Requests' : 'Friend Requests'}</Text>
+          <Text style={styles.requestsButtonText}>
+            {showRequests ? 'Hide Requests' : 'Friend Requests'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -101,7 +58,6 @@ const Leaderboard: React.FC = () => {
             data={friendRequests}
             renderItem={({ item }) => (
               <Animated.View style={styles.requestItem} entering={SlideInLeft} exiting={SlideOutRight} layout={Layout.springify()}>
-                <Image source={item.profileImage} style={styles.profileImage} />
                 <View style={styles.requestInfo}>
                   <Text style={styles.requestName}>{item.name}</Text>
                   <View style={styles.requestButtons}>
@@ -121,7 +77,7 @@ const Leaderboard: React.FC = () => {
       )}
 
       <FlatList
-        data={friends.sort((a, b) => b.xp - a.xp)}
+        data={[...friends].sort((a, b) => b.xp - a.xp)}
         renderItem={renderFriendItem}
         keyExtractor={(item) => item.id}
       />
@@ -162,12 +118,6 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 8,
     marginBottom: 10,
-  },
-  profileImage: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    marginRight: 16,
   },
   friendInfo: {
     flex: 1,
@@ -212,6 +162,7 @@ const styles = StyleSheet.create({
   requestButtons: {
     flexDirection: 'row',
     gap: 8,
+    marginTop: 6,
   },
   acceptButton: {
     backgroundColor: '#00C851',

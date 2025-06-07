@@ -306,7 +306,7 @@ const ChatScreen: React.FC = () => {
                   </View>
                 </TouchableOpacity>
               )}
-              showsVerticalScrollIndicator={false}
+              showsVerticalScrollIndicator={true}
             />
           </View>
         </View>
